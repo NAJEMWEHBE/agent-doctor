@@ -1,5 +1,6 @@
 {
   "name": "agent-doctor",
+  "description": "Health checks for AI coding stacks — catch silent failures across Claude Code, Codex, Cursor & more.",
   "owner": {
     "name": "NAJEMWEHBE",
     "url": "https://github.com/NAJEMWEHBE"
@@ -7,7 +8,7 @@
   "plugins": [
     {
       "name": "agent-doctor",
-      "source": ".",
+      "source": { "source": "github", "repo": "NAJEMWEHBE/agent-doctor" },
       "description": "flutter doctor for your AI coding stack — diagnose Claude Code, Codex, Cursor, Gemini CLI & more. Catches the silent failures.",
       "version": "0.3.0",
       "author": { "name": "NAJEMWEHBE" }
