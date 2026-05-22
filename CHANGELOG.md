@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here. Format: [Keep a Changelog](https://keepachangelog.com), [SemVer](https://semver.org).
 
+## [0.2.0] — 2026-05-22
+
+### Added
+- **0–100 health score** and checks grouped by **dimension** (runtime / agents / memory / config / mcp).
+- New checks: `git`, claude-mem vector DB (Chroma `:8000`), MCP config (`~/.claude.json`).
+- `agent-doctor init` — scaffold a starter `checks.json`.
+- `docs/LANDSCAPE.md` — competitive landscape + positioning.
+
+### Changed
+- README: runtime-probe positioning — *"they audit your config; agent-doctor checks if your stack is actually alive."*
+
 ## [0.1.0] — 2026-05-22
 
 Initial release.

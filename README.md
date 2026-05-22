@@ -32,20 +32,27 @@ One command runs **functional probes** (not "does the file exist" — *does it a
 
 ```
   🩺 agent-doctor — AI coding stack health
+  Health score: 75/100
 
-  ✔ PASS  Node.js                    v22.1
-  ✔ PASS  Claude Code CLI            2.1.148
-  ✔ PASS  Codex CLI                  0.5.0
-  ✖ FAIL  claude-mem (writing?)      SILENT FAILURE: 248 inputs logged, 0 memories written
-         ↳ fix: check CLAUDE_MEM_PROVIDER + CLAUDE_CODE_PATH, then restart the worker
-  ✔ PASS  claude-mem worker          HTTP 200
-  – SKIP  Aider                      not installed
+  AGENTS
+    ✔ PASS  Claude Code CLI        2.1.148
+    ✔ PASS  Codex CLI              0.5.0
+  MEMORY
+    ✖ FAIL  claude-mem (writing?)  SILENT FAILURE: 248 inputs logged, 0 memories written
+           ↳ fix: check CLAUDE_MEM_PROVIDER + CLAUDE_CODE_PATH, then restart the worker
+    ✔ PASS  claude-mem worker      HTTP 200
+  RUNTIME
+    – SKIP  Aider                  not installed
 
-  4 pass  0 warn  1 fail  1 skip
+  3 pass  0 warn  1 fail  1 skip
   Action needed — see fixes above.
 ```
 
 That **FAIL** line is the whole point: it surfaces the silent failure instantly instead of days later.
+
+### Why not just a config linter?
+
+Other "health" tools audit your *config* (`settings.json`, `CLAUDE.md` best practices) — useful, but they can't see a tool that's **installed and configured yet silently broken**. agent-doctor runs **live runtime probes**: it asks *"is the memory actually writing? is the worker answering? does the CLI run?"* — and reports a 0–100 score across dimensions. **They audit your config; agent-doctor checks if your stack is actually alive.** (See [docs/LANDSCAPE.md](docs/LANDSCAPE.md).)
 
 ## Install
 
@@ -90,6 +97,7 @@ agent-doctor --json       # machine-readable, for CI/automation
 agent-doctor --fail-on fail   # exit nonzero if anything is broken (CI gate)
 agent-doctor --quiet      # only show problems
 agent-doctor --force      # ignore throttle cache, re-run network probes now
+agent-doctor init         # write a starter checks.json you can extend
 ```
 
 ## Add your own checks
