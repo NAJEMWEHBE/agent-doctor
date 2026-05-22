@@ -2,7 +2,7 @@
 // status: 'pass' | 'warn' | 'fail' | 'skip'
 // Principle: probe BEHAVIOR, not existence. Judge by output, tolerate weird exit codes.
 
-import { spawnSync } from 'node:child_process';
+import { spawnSync, spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import net from 'node:net';
@@ -25,6 +25,21 @@ function runShell(command, timeout = 15000) {
     const r = spawnSync(command, { encoding: 'utf8', timeout, shell: true, windowsHide: true });
     return { out: `${r.stdout || ''}${r.stderr || ''}`, code: r.status };
   } catch { return { out: '', code: null }; }
+}
+
+// Async shell exec (non-blocking) — for parallel probes that must not freeze the event loop.
+function runShellAsync(command, timeout = 8000) {
+  return new Promise((resolve) => {
+    let out = '';
+    let settled = false;
+    const finish = () => { if (!settled) { settled = true; clearTimeout(t); resolve({ out }); } };
+    const child = spawn(command, { shell: true, windowsHide: true });
+    const t = setTimeout(() => { try { child.kill(); } catch { /* noop */ } finish(); }, timeout);
+    child.stdout?.on('data', (d) => { out += d; });
+    child.stderr?.on('data', (d) => { out += d; });
+    child.on('error', finish);
+    child.on('close', finish);
+  });
 }
 
 // shell:false + args array — for real binaries (python/sqlite3); ENOENT = absent, no quoting issues.
@@ -108,6 +123,7 @@ export async function mcpProbe(p) {
   let data;
   try { data = JSON.parse(readFileSync(path, 'utf8')); }
   catch (e) { return { status: 'fail', detail: `MCP config invalid JSON: ${(e && e.message) || e}` }; }
+  if (!data || typeof data !== 'object') return { status: 'skip', detail: 'MCP config is not an object' };
 
   const all = { ...(data.mcpServers || {}) };
   if (data.projects && typeof data.projects === 'object') {
@@ -130,7 +146,7 @@ export async function mcpProbe(p) {
       finally { clearTimeout(t); }
     }
     if (cfg.command) {
-      const { out } = runShell(`${cfg.command} --version`, 6000);
+      const { out } = await runShellAsync(`${cfg.command} --version`, 6000);
       return (out.trim() === '' || NOT_FOUND.test(out)) ? `${name}(cmd)` : null;
     }
     return `${name}(no url/command)`;
