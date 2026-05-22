@@ -33,7 +33,7 @@ function initChecks() {
   try {
     writeFileSync(target, JSON.stringify(CHECKS_TEMPLATE, null, 2) + '\n');
   } catch (e) {
-    process.stderr.write(`Error: could not write ${target}: ${(e && e.message) || e}\n`);
+    process.stderr.write(`Error: could not write ${target}: ${e?.message || e}\n`);
     return 1;
   }
   process.stdout.write(`Wrote starter ${target}\nEdit it to add your own checks (merged over built-ins by id), then run: agent-doctor\n`);
@@ -133,6 +133,6 @@ async function main() {
 }
 
 main().then((code) => process.exit(code)).catch((e) => {
-  process.stderr.write(`agent-doctor error: ${(e && e.stack) || e}\n`);
+  process.stderr.write(`agent-doctor error: ${e?.stack || e}\n`);
   process.exit(0); // never hard-block the host
 });
