@@ -14,8 +14,8 @@
       "label": "git",
       "dimension": "runtime",
       "tier": "fast",
-      "probe": { "type": "exec", "cmd": "git", "args": ["--version"], "expectOutput": "git version", "missing": "fail" },
-      "fix": "Install git from https://git-scm.com"
+      "probe": { "type": "exec", "cmd": "git", "args": ["--version"], "expectOutput": "git version", "missing": "skip" },
+      "fix": "Install git from https://git-scm.com (most agent workflows need it)"
     },
     {
       "id": "runtime:bun",

@@ -85,8 +85,17 @@ function parseArgs(argv) {
 }
 
 async function main() {
-  // first positional arg (flags may appear before/after) selects a subcommand
-  const sub = process.argv.slice(2).find((a) => !a.startsWith('-'));
+  // first positional arg selects a subcommand; skip value-consuming flags so
+  // e.g. `--only init` / `--fail-on init` are not mistaken for the subcommand.
+  const argv = process.argv.slice(2);
+  const VALUE_FLAGS = new Set(['--only', '--fail-on']);
+  let sub = null;
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a.startsWith('-')) { if (VALUE_FLAGS.has(a)) i += 1; continue; }
+    sub = a;
+    break;
+  }
   if (sub === 'init') return initChecks();
   const o = parseArgs(process.argv.slice(2));
   if (o.help) { process.stdout.write(HELP + '\n'); return 0; }

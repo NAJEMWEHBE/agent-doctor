@@ -44,7 +44,7 @@ One command runs **functional probes** (not "does the file exist" — *does it a
   RUNTIME
     – SKIP  Aider                  not installed
 
-  4 pass  0 warn  1 fail  1 skip
+  3 pass  0 warn  1 fail  1 skip
   Action needed — see fixes above.
 ```
 
