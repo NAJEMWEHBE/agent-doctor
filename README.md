@@ -7,7 +7,7 @@
 **`flutter doctor` for your AI coding stack.**
 Diagnose Claude Code, Codex, Cursor, Gemini CLI, Aider & more — and catch the **silent failures** before they waste your day.
 
-[![npm](https://img.shields.io/npm/v/agent-doctor?color=10b981)](https://www.npmjs.com/package/agent-doctor)
+[![npm](https://img.shields.io/npm/v/ai-agent-doctor?color=10b981)](https://www.npmjs.com/package/ai-agent-doctor)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![CI](https://github.com/NAJEMWEHBE/agent-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/NAJEMWEHBE/agent-doctor/actions)
 [![stars](https://img.shields.io/github/stars/NAJEMWEHBE/agent-doctor?style=social)](https://github.com/NAJEMWEHBE/agent-doctor)
@@ -58,14 +58,15 @@ Other "health" tools audit your *config* (`settings.json`, `CLAUDE.md` best prac
 
 **Try it instantly (no install):**
 ```bash
-npx agent-doctor
+npx ai-agent-doctor
 ```
 
 **Install globally:**
 ```bash
-npm install -g agent-doctor
+npm install -g ai-agent-doctor
 agent-doctor --deep
 ```
+> npm package is **`ai-agent-doctor`** (the plain name was taken); the installed command is still **`agent-doctor`**.
 
 **Claude Code (auto-runs every session + adds `/doctor`):**
 ```
