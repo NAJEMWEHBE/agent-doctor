@@ -118,27 +118,24 @@ export async function mcpProbe(p) {
   const names = Object.keys(all);
   if (names.length === 0) return { status: 'skip', detail: 'no MCP servers configured' };
 
-  const down = [];
-  for (const [name, cfg] of Object.entries(all)) {
-    if (!cfg || typeof cfg !== 'object') { down.push(`${name}(bad-config)`); continue; }
-    const url = cfg.url || ((cfg.type === 'http' || cfg.type === 'sse') ? cfg.url : null);
+  // Probe servers concurrently — slow/unreachable ones shouldn't serialize the 3s timeouts.
+  const probeOne = async ([name, cfg]) => {
+    if (!cfg || typeof cfg !== 'object') return `${name}(bad-config)`;
+    const url = cfg.url;
     if (url) {
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 3000);
-      try {
-        await fetch(url, { signal: ctrl.signal });
-      } catch {
-        down.push(name);
-      } finally {
-        clearTimeout(t);
-      }
-    } else if (cfg.command) {
-      const { out } = runShell(`${cfg.command} --version`, 6000);
-      if (out.trim() === '' || NOT_FOUND.test(out)) down.push(`${name}(cmd)`);
-    } else {
-      down.push(`${name}(no url/command)`);
+      try { await fetch(url, { signal: ctrl.signal }); return null; }
+      catch { return name; }
+      finally { clearTimeout(t); }
     }
-  }
+    if (cfg.command) {
+      const { out } = runShell(`${cfg.command} --version`, 6000);
+      return (out.trim() === '' || NOT_FOUND.test(out)) ? `${name}(cmd)` : null;
+    }
+    return `${name}(no url/command)`;
+  };
+  const down = (await Promise.all(Object.entries(all).map(probeOne))).filter(Boolean);
   if (down.length === 0) return { status: 'pass', detail: `${names.length} MCP server(s), all reachable` };
   if (down.length < names.length) return { status: 'warn', detail: `${names.length} configured, down: ${down.join(', ')}` };
   return { status: 'fail', detail: `all ${names.length} MCP server(s) unreachable: ${down.join(', ')}` };
