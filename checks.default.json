@@ -1,5 +1,5 @@
 {
-  "$schema": "https://github.com/OWNER/agent-doctor/blob/main/checks.schema.json",
+  "$schema": "https://github.com/NAJEMWEHBE/agent-doctor/blob/main/checks.schema.json",
   "checks": [
     {
       "id": "runtime:node",

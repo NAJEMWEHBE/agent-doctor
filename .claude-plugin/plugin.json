@@ -2,8 +2,8 @@
   "name": "agent-doctor",
   "version": "0.1.0",
   "description": "flutter doctor for your AI coding stack — diagnose Claude Code, Codex, Cursor, Gemini CLI & more. Catches the silent failures.",
-  "author": { "name": "OWNER" },
-  "homepage": "https://github.com/OWNER/agent-doctor",
+  "author": { "name": "NAJEMWEHBE" },
+  "homepage": "https://github.com/NAJEMWEHBE/agent-doctor",
   "license": "MIT",
   "keywords": ["health-check", "diagnostics", "doctor", "claude-code", "mcp", "devtools"],
   "hooks": "./hooks/hooks.json"

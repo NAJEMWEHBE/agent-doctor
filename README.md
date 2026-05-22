@@ -9,10 +9,8 @@ Diagnose Claude Code, Codex, Cursor, Gemini CLI, Aider & more — and catch the 
 
 [![npm](https://img.shields.io/npm/v/agent-doctor?color=10b981)](https://www.npmjs.com/package/agent-doctor)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![CI](https://github.com/OWNER/agent-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/agent-doctor/actions)
-[![stars](https://img.shields.io/github/stars/OWNER/agent-doctor?style=social)](https://github.com/OWNER/agent-doctor)
-
-<img src="assets/demo.gif" alt="agent-doctor demo" width="80%" />
+[![CI](https://github.com/NAJEMWEHBE/agent-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/NAJEMWEHBE/agent-doctor/actions)
+[![stars](https://img.shields.io/github/stars/NAJEMWEHBE/agent-doctor?style=social)](https://github.com/NAJEMWEHBE/agent-doctor)
 
 </div>
 
@@ -62,7 +60,7 @@ agent-doctor --deep
 
 **Claude Code (auto-runs every session + adds `/doctor`):**
 ```
-/plugin marketplace add OWNER/agent-doctor
+/plugin marketplace add NAJEMWEHBE/agent-doctor
 /plugin install agent-doctor@agent-doctor
 ```
 Then just type `/doctor` anytime, or let the session-start hook flag problems automatically.
