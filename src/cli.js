@@ -1,13 +1,48 @@
 #!/usr/bin/env node
 // agent-doctor — flutter doctor for your AI coding stack.
+import { writeFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { runChecks } from './engine.js';
 import { render, renderJson } from './render.js';
+
+const CHECKS_TEMPLATE = {
+  checks: [
+    {
+      id: 'keys:openai',
+      label: 'OpenAI API key',
+      dimension: 'keys',
+      tier: 'deep',
+      throttleHours: 24,
+      probe: {
+        type: 'http',
+        url: 'https://api.openai.com/v1/models',
+        expectStatus: 200,
+        headers: { Authorization: 'Bearer REPLACE_WITH_KEY' },
+      },
+      fix: 'Set/rotate your OpenAI API key',
+    },
+  ],
+};
+
+function initChecks() {
+  const target = join(process.cwd(), 'checks.json');
+  if (existsSync(target)) {
+    process.stdout.write(`checks.json already exists at ${target} — leaving it untouched.\n`);
+    return 0;
+  }
+  writeFileSync(target, JSON.stringify(CHECKS_TEMPLATE, null, 2) + '\n');
+  process.stdout.write(`Wrote starter ${target}\nEdit it to add your own checks (merged over built-ins by id), then run: agent-doctor\n`);
+  return 0;
+}
 
 const HELP = `
 🩺 agent-doctor — health checks for your AI coding stack
 
 Usage:
   agent-doctor [options]
+  agent-doctor init          Write a starter checks.json in the current directory
+
+Reports a 0–100 health score plus per-dimension PASS/WARN/FAIL with fixes.
 
 Options:
   --fast            Fast tier only (no network/spawns). Used by session-start hooks.
@@ -45,6 +80,7 @@ function parseArgs(argv) {
 }
 
 async function main() {
+  if (process.argv[2] === 'init') return initChecks();
   const o = parseArgs(process.argv.slice(2));
   if (o.help) { process.stdout.write(HELP + '\n'); return 0; }
   if (o.version) {

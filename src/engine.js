@@ -82,4 +82,29 @@ export async function runChecks({ tier = 'deep', force = false, only = null } = 
   return results;
 }
 
+// 0-100 health score. SKIP is excluded (absent tools must not penalize).
+// pass=1, warn=0.5, fail=0. No scorable checks => 100.
+export function scoreResults(results) {
+  const weight = { pass: 1, warn: 0.5, fail: 0 };
+  let sum = 0;
+  let n = 0;
+  for (const r of results) {
+    if (!(r.status in weight)) continue; // skip 'skip'
+    sum += weight[r.status];
+    n += 1;
+  }
+  return n === 0 ? 100 : Math.round((sum / n) * 100);
+}
+
+// Group results by their `dimension` field (default 'other'), preserving order.
+export function byDimension(results) {
+  const groups = new Map();
+  for (const r of results) {
+    const dim = r.dimension || 'other';
+    if (!groups.has(dim)) groups.set(dim, []);
+    groups.get(dim).push(r);
+  }
+  return groups;
+}
+
 export { expandPath, DATA_DIR };

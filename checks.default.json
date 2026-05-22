@@ -4,13 +4,23 @@
     {
       "id": "runtime:node",
       "label": "Node.js",
+      "dimension": "runtime",
       "tier": "fast",
       "probe": { "type": "exec", "cmd": "node", "args": ["--version"], "expectOutput": "v\\d+\\.\\d+", "missing": "fail" },
       "fix": "Install Node.js 18+ from https://nodejs.org"
     },
     {
+      "id": "runtime:git",
+      "label": "git",
+      "dimension": "runtime",
+      "tier": "fast",
+      "probe": { "type": "exec", "cmd": "git", "args": ["--version"], "expectOutput": "git version", "missing": "fail" },
+      "fix": "Install git from https://git-scm.com"
+    },
+    {
       "id": "runtime:bun",
       "label": "Bun",
+      "dimension": "runtime",
       "tier": "fast",
       "probe": { "type": "exec", "cmd": "bun", "args": ["--version"], "expectOutput": "\\d+\\.\\d+", "missing": "skip", "optional": true },
       "fix": "Optional. Install from https://bun.sh if a tool needs it"
@@ -18,6 +28,7 @@
     {
       "id": "runtime:python",
       "label": "Python",
+      "dimension": "runtime",
       "tier": "fast",
       "probe": { "type": "exec", "cmd": "python3", "args": ["--version"], "expectOutput": "Python \\d", "missing": "skip", "optional": true },
       "fix": "Optional. Install Python 3 if a tool needs it"
@@ -25,6 +36,7 @@
     {
       "id": "agent-cli:claude",
       "label": "Claude Code CLI",
+      "dimension": "agents",
       "tier": "deep",
       "probe": { "type": "exec", "cmd": "claude", "args": ["--version"], "expectOutput": "\\d+\\.\\d+", "missing": "skip" },
       "fix": "Install: irm https://claude.ai/install.ps1 | iex  (Win) or curl -fsSL https://claude.ai/install.sh | sh"
@@ -32,6 +44,7 @@
     {
       "id": "agent-cli:codex",
       "label": "Codex CLI",
+      "dimension": "agents",
       "tier": "deep",
       "probe": { "type": "exec", "cmd": "codex", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
       "fix": "Install: npm i -g @openai/codex"
@@ -39,6 +52,7 @@
     {
       "id": "agent-cli:gemini",
       "label": "Gemini CLI",
+      "dimension": "agents",
       "tier": "deep",
       "probe": { "type": "exec", "cmd": "gemini", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
       "fix": "Install: npm i -g @google/gemini-cli"
@@ -46,6 +60,7 @@
     {
       "id": "agent-cli:aider",
       "label": "Aider",
+      "dimension": "agents",
       "tier": "deep",
       "probe": { "type": "exec", "cmd": "aider", "args": ["--version"], "expectOutput": "aider", "missing": "skip" },
       "fix": "Install: python -m pip install aider-install && aider-install"
@@ -53,6 +68,7 @@
     {
       "id": "memory:claude-mem-writing",
       "label": "claude-mem (writing?)",
+      "dimension": "memory",
       "tier": "fast",
       "probe": {
         "type": "memwrite",
@@ -66,13 +82,23 @@
     {
       "id": "memory:claude-mem-worker",
       "label": "claude-mem worker",
+      "dimension": "memory",
       "tier": "fast",
       "probe": { "type": "http", "url": "http://127.0.0.1:37777/api/readiness", "expectStatus": 200, "skipIfDown": true },
       "fix": "Worker down: run the claude-mem worker-cli.js restart, or reopen your agent"
     },
     {
+      "id": "memory:claude-mem-chroma",
+      "label": "claude-mem vector DB",
+      "dimension": "memory",
+      "tier": "deep",
+      "probe": { "type": "port", "host": "127.0.0.1", "port": 8000, "skipIfDown": true },
+      "fix": "Chroma vector DB not listening on :8000 (only relevant if CLAUDE_MEM_CHROMA_ENABLED=true)"
+    },
+    {
       "id": "config:claude-settings",
       "label": "Claude Code settings.json",
+      "dimension": "config",
       "tier": "fast",
       "probe": { "type": "fileJson", "path": "~/.claude/settings.json", "missing": "skip" },
       "fix": "Invalid JSON in ~/.claude/settings.json — fix the syntax"
@@ -80,9 +106,18 @@
     {
       "id": "config:claude-mem-settings",
       "label": "claude-mem settings.json",
+      "dimension": "config",
       "tier": "fast",
       "probe": { "type": "fileJson", "path": "~/.claude-mem/settings.json", "requireKeys": ["CLAUDE_MEM_PROVIDER"], "missing": "skip" },
       "fix": "Set CLAUDE_MEM_PROVIDER (claude|gemini|openrouter) in ~/.claude-mem/settings.json"
+    },
+    {
+      "id": "mcp:claude-config",
+      "label": "MCP config (~/.claude.json)",
+      "dimension": "mcp",
+      "tier": "fast",
+      "probe": { "type": "fileJson", "path": "~/.claude.json", "missing": "skip" },
+      "fix": "~/.claude.json is invalid JSON — your MCP servers may not load"
     }
   ]
 }

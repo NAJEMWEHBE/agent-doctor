@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadChecks, runChecks } from '../src/engine.js';
+import { loadChecks, runChecks, scoreResults } from '../src/engine.js';
 import { execProbe, fileJsonProbe } from '../src/probes.js';
 
 test('loadChecks returns built-in checks', () => {
@@ -23,6 +23,14 @@ test('execProbe skips a missing optional binary', () => {
 test('fileJsonProbe skips a missing file by default', () => {
   const r = fileJsonProbe({ path: '/no/such/file-xyz.json' });
   assert.equal(r.status, 'skip');
+});
+
+test('scoreResults: pass=100, skip excluded, fail/warn lower', () => {
+  assert.equal(scoreResults([{ status: 'pass' }, { status: 'pass' }]), 100);
+  assert.equal(scoreResults([{ status: 'pass' }, { status: 'skip' }]), 100); // skip excluded
+  assert.equal(scoreResults([{ status: 'pass' }, { status: 'fail' }]), 50);
+  assert.equal(scoreResults([{ status: 'warn' }]), 50);
+  assert.equal(scoreResults([{ status: 'skip' }]), 100); // nothing scorable -> 100
 });
 
 test('runChecks fast tier returns results with statuses', async () => {
