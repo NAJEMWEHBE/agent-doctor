@@ -83,7 +83,9 @@ Then just type `/doctor` anytime, or let the session-start hook flag problems au
 | Cursor | CLI alive |
 | Gemini CLI | CLI alive |
 | Aider | CLI alive |
-| Runtimes | Node · Bun · Python |
+| MCP servers | reachability of configured servers (remote url + local launcher command) |
+| API keys | live ping — Anthropic · OpenAI · Gemini · Groq (skipped unless the key env var is set; never printed) |
+| Runtimes | Node · Bun · Python · git |
 | Any shell / CI | `--json`, `--fail-on fail` |
 
 Absent tools are **skipped**, never failed — only *installed-but-broken* things fail.

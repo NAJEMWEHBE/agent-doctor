@@ -55,13 +55,38 @@ export function execProbe(p) {
   return { status: 'pass', detail: out.trim().slice(0, 60) };
 }
 
-// http: { url, expectStatus?, timeoutMs?, skipIfDown? }
+// Replace ${ENV:NAME} with process.env.NAME. Returns { out, missing[] }.
+// Lets checks reference secrets (API keys) without ever printing them.
+export function interpolateEnv(str) {
+  const missing = [];
+  const out = String(str ?? '').replace(/\$\{ENV:([A-Za-z0-9_]+)\}/g, (_, name) => {
+    const v = process.env[name];
+    if (v === undefined || v === '') { missing.push(name); return ''; }
+    return v;
+  });
+  return { out, missing };
+}
+
+// http: { url, expectStatus?, timeoutMs?, skipIfDown?, headers? }
+// url + header values support ${ENV:VAR}; if a referenced env var is unset, the
+// check SKIPs (e.g. an API-key ping with no key set) rather than failing.
 export async function httpProbe(p) {
   const expect = p.expectStatus || 200;
+  const u = interpolateEnv(p.url);
+  const missing = [...u.missing];
+  const headers = {};
+  for (const [k, v] of Object.entries(p.headers || {})) {
+    const hv = interpolateEnv(v);
+    missing.push(...hv.missing);
+    headers[k] = hv.out;
+  }
+  if (missing.length) {
+    return { status: 'skip', detail: `set ${[...new Set(missing)].join(', ')} to enable` };
+  }
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), p.timeoutMs || 4000);
   try {
-    const res = await fetch(p.url, { signal: ctrl.signal, headers: p.headers || {} });
+    const res = await fetch(u.out, { signal: ctrl.signal, headers });
     if (res.status === expect) return { status: 'pass', detail: `HTTP ${res.status}` };
     return { status: 'fail', detail: `HTTP ${res.status} (want ${expect})` };
   } catch (e) {
@@ -70,6 +95,47 @@ export async function httpProbe(p) {
   } finally {
     clearTimeout(t);
   }
+}
+
+// mcp: { config? } — read an MCP config file (~/.claude.json by default), find
+// configured servers (root + per-project mcpServers), and probe each:
+//   - remote (url/http/sse): is the endpoint reachable?
+//   - local (command): does the launcher binary resolve on PATH?
+// pass = all reachable, warn = some down, fail = all down, skip = none configured.
+export async function mcpProbe(p) {
+  const path = expandPath(p.config || '~/.claude.json');
+  if (!existsSync(path)) return { status: 'skip', detail: 'no MCP config found' };
+  let data;
+  try { data = JSON.parse(readFileSync(path, 'utf8')); }
+  catch (e) { return { status: 'fail', detail: `MCP config invalid JSON: ${(e && e.message) || e}` }; }
+
+  const all = { ...(data.mcpServers || {}) };
+  if (data.projects && typeof data.projects === 'object') {
+    for (const proj of Object.values(data.projects)) {
+      if (proj && proj.mcpServers) Object.assign(all, proj.mcpServers);
+    }
+  }
+  const names = Object.keys(all);
+  if (names.length === 0) return { status: 'skip', detail: 'no MCP servers configured' };
+
+  const down = [];
+  for (const [name, cfg] of Object.entries(all)) {
+    const url = cfg.url || (cfg.type === 'http' || cfg.type === 'sse' ? cfg.url : null);
+    if (url) {
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 3000);
+        await fetch(url, { signal: ctrl.signal });
+        clearTimeout(t);
+      } catch { down.push(name); }
+    } else if (cfg.command) {
+      const { out } = runShell(`${cfg.command} --version`, 6000);
+      if (out.trim() === '' || NOT_FOUND.test(out)) down.push(`${name}(cmd)`);
+    }
+  }
+  if (down.length === 0) return { status: 'pass', detail: `${names.length} MCP server(s), all reachable` };
+  if (down.length < names.length) return { status: 'warn', detail: `${names.length} configured, down: ${down.join(', ')}` };
+  return { status: 'fail', detail: `all ${names.length} MCP server(s) unreachable: ${down.join(', ')}` };
 }
 
 // port: { host?, port, timeoutMs? }

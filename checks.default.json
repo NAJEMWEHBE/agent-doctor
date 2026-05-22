@@ -118,6 +118,69 @@
       "tier": "fast",
       "probe": { "type": "fileJson", "path": "~/.claude.json", "missing": "skip" },
       "fix": "~/.claude.json is invalid JSON — your MCP servers may not load"
+    },
+    {
+      "id": "mcp:servers",
+      "label": "MCP servers reachable",
+      "dimension": "mcp",
+      "tier": "deep",
+      "probe": { "type": "mcp", "config": "~/.claude.json" },
+      "fix": "An MCP server is unreachable: check its url, or that its launcher command (npx/uvx/node/python) is installed + on PATH"
+    },
+    {
+      "id": "keys:anthropic",
+      "label": "Anthropic API key",
+      "dimension": "keys",
+      "tier": "deep",
+      "throttleHours": 24,
+      "probe": {
+        "type": "http",
+        "url": "https://api.anthropic.com/v1/models",
+        "expectStatus": 200,
+        "headers": { "x-api-key": "${ENV:ANTHROPIC_API_KEY}", "anthropic-version": "2023-06-01" }
+      },
+      "fix": "ANTHROPIC_API_KEY rejected — rotate/refresh it"
+    },
+    {
+      "id": "keys:openai",
+      "label": "OpenAI API key",
+      "dimension": "keys",
+      "tier": "deep",
+      "throttleHours": 24,
+      "probe": {
+        "type": "http",
+        "url": "https://api.openai.com/v1/models",
+        "expectStatus": 200,
+        "headers": { "Authorization": "Bearer ${ENV:OPENAI_API_KEY}" }
+      },
+      "fix": "OPENAI_API_KEY rejected — rotate/refresh it"
+    },
+    {
+      "id": "keys:gemini",
+      "label": "Gemini API key",
+      "dimension": "keys",
+      "tier": "deep",
+      "throttleHours": 24,
+      "probe": {
+        "type": "http",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models?key=${ENV:GEMINI_API_KEY}",
+        "expectStatus": 200
+      },
+      "fix": "GEMINI_API_KEY rejected — rotate/refresh it"
+    },
+    {
+      "id": "keys:groq",
+      "label": "Groq API key",
+      "dimension": "keys",
+      "tier": "deep",
+      "throttleHours": 24,
+      "probe": {
+        "type": "http",
+        "url": "https://api.groq.com/openai/v1/models",
+        "expectStatus": 200,
+        "headers": { "Authorization": "Bearer ${ENV:GROQ_API_KEY}" }
+      },
+      "fix": "GROQ_API_KEY rejected — rotate/refresh it"
     }
   ]
 }
