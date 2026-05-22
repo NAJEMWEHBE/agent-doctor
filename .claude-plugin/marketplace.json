@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "agent-doctor",
-      "source": { "source": "github", "repo": "NAJEMWEHBE/agent-doctor" },
+      "source": { "source": "url", "url": "https://github.com/NAJEMWEHBE/agent-doctor.git" },
       "description": "flutter doctor for your AI coding stack — diagnose Claude Code, Codex, Cursor, Gemini CLI & more. Catches the silent failures.",
       "version": "0.3.0",
       "author": { "name": "NAJEMWEHBE" }
