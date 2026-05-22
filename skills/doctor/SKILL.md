@@ -39,7 +39,7 @@ After showing the report, if there are any FAIL or WARN rows, you MAY help fix t
    - **Present** the fix: what it changes, why, the source(s), and a one-line risk note.
    - **Ask:** apply / skip / explain-more.
    - **Apply only on approval**, using your normal tools (edit the config, run the command). Never auto-apply. For risky actions (rewriting a config, installing software, deleting anything) restate the exact action and get explicit confirmation first.
-   - **Verify:** re-run `agent-doctor --only <id>` (or `--json`) and report whether it is now GREEN. If it still fails, research once more or stop and say so.
+   - **Verify:** re-run `agent-doctor --only <id> --force` and report whether it is now GREEN. The `--force` is required — it bypasses the throttle cache, so a just-fixed throttled check (API keys, deep probes) reflects the new state instead of the stale cached result. If it still fails, research once more or stop and say so.
 3. Finish with a one-line summary: fixed / skipped / still-broken.
 
 This flow needs a research-capable agent. A bare `agent-doctor` run still prints the static `fix` hint — that is the floor; this is the bonus.
