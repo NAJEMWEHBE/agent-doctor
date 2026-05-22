@@ -12,6 +12,8 @@ Diagnose Claude Code, Codex, Cursor, Gemini CLI, Aider & more — and catch the 
 [![CI](https://github.com/NAJEMWEHBE/agent-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/NAJEMWEHBE/agent-doctor/actions)
 [![stars](https://img.shields.io/github/stars/NAJEMWEHBE/agent-doctor?style=social)](https://github.com/NAJEMWEHBE/agent-doctor)
 
+<img src="assets/demo.png" alt="agent-doctor sample report" width="85%" />
+
 </div>
 
 ---
