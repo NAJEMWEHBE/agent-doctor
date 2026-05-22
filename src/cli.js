@@ -30,7 +30,12 @@ function initChecks() {
     process.stdout.write(`checks.json already exists at ${target} — leaving it untouched.\n`);
     return 0;
   }
-  writeFileSync(target, JSON.stringify(CHECKS_TEMPLATE, null, 2) + '\n');
+  try {
+    writeFileSync(target, JSON.stringify(CHECKS_TEMPLATE, null, 2) + '\n');
+  } catch (e) {
+    process.stderr.write(`Error: could not write ${target}: ${(e && e.message) || e}\n`);
+    return 1;
+  }
   process.stdout.write(`Wrote starter ${target}\nEdit it to add your own checks (merged over built-ins by id), then run: agent-doctor\n`);
   return 0;
 }
@@ -80,7 +85,9 @@ function parseArgs(argv) {
 }
 
 async function main() {
-  if (process.argv[2] === 'init') return initChecks();
+  // first positional arg (flags may appear before/after) selects a subcommand
+  const sub = process.argv.slice(2).find((a) => !a.startsWith('-'));
+  if (sub === 'init') return initChecks();
   const o = parseArgs(process.argv.slice(2));
   if (o.help) { process.stdout.write(HELP + '\n'); return 0; }
   if (o.version) {
