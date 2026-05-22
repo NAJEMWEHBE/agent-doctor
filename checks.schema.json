@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/NAJEMWEHBE/agent-doctor/blob/main/checks.schema.json",
+  "title": "agent-doctor checks file",
+  "description": "Schema for checks.default.json and user checks.json (merged over built-ins by id).",
+  "type": "object",
+  "required": ["checks"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "checks": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/check" }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "check": {
+      "type": "object",
+      "required": ["id", "probe"],
+      "properties": {
+        "id": { "type": "string", "description": "Unique id (e.g. 'agent-cli:claude'). User checks override built-ins by id." },
+        "label": { "type": "string", "description": "Human-readable name shown in the report." },
+        "dimension": { "type": "string", "description": "Group heading, e.g. runtime|agents|memory|config|mcp|keys." },
+        "tier": { "enum": ["fast", "deep"], "description": "fast = no network (session-start hook); deep = network/spawns (on demand)." },
+        "throttleHours": { "type": "number", "minimum": 0, "description": "Cache the result for N hours (deep network probes)." },
+        "fix": { "type": "string", "description": "One-line remediation shown on WARN/FAIL." },
+        "probe": { "$ref": "#/definitions/probe" }
+      },
+      "additionalProperties": false
+    },
+    "probe": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["exec", "http", "port", "fileJson", "memwrite", "mcp"] },
+        "cmd": { "type": "string", "description": "exec: command to run." },
+        "args": { "type": "array", "items": { "type": "string" }, "description": "exec: arguments." },
+        "expectOutput": { "type": "string", "description": "exec: regex the output must match to PASS (judged by output, not exit code)." },
+        "missing": { "enum": ["skip", "fail"], "description": "exec/fileJson: behavior when the target is absent (default skip)." },
+        "optional": { "type": "boolean", "description": "exec: a present-but-unverified tool SKIPs instead of FAILs." },
+        "url": { "type": "string", "description": "http: URL. Supports ${ENV:VAR} interpolation." },
+        "expectStatus": { "type": "integer", "description": "http: expected status (default 200)." },
+        "headers": { "type": "object", "additionalProperties": { "type": "string" }, "description": "http: headers; values support ${ENV:VAR} (skips if unset)." },
+        "skipIfDown": { "type": "boolean", "description": "http/port: SKIP instead of FAIL when unreachable (optional services)." },
+        "host": { "type": "string", "description": "port: host (default 127.0.0.1)." },
+        "port": { "type": "integer", "description": "port: TCP port to connect." },
+        "path": { "type": "string", "description": "fileJson: file path (supports ~ and ${HOME})." },
+        "requireKeys": { "type": "array", "items": { "type": "string" }, "description": "fileJson: keys that must be present + non-empty." },
+        "db": { "type": "string", "description": "memwrite: SQLite DB path." },
+        "writesQuery": { "type": "string", "description": "memwrite: SQL returning the count of stored memories." },
+        "inputsQuery": { "type": "string", "description": "memwrite: SQL returning the count of inputs/prompts." },
+        "minInputs": { "type": "integer", "description": "memwrite: minimum inputs before flagging a silent failure (default 5)." },
+        "config": { "type": "string", "description": "mcp: path to the MCP config file (default ~/.claude.json)." },
+        "timeoutMs": { "type": "integer", "description": "exec/http: timeout in milliseconds." }
+      },
+      "additionalProperties": false
+    }
+  }
+}
