@@ -32,9 +32,16 @@ function runShellAsync(command, timeout = 8000) {
   return new Promise((resolve) => {
     let out = '';
     let settled = false;
+    let t;
     const finish = () => { if (!settled) { settled = true; clearTimeout(t); resolve({ out }); } };
-    const child = spawn(command, { shell: true, windowsHide: true });
-    const t = setTimeout(() => { try { child.kill(); } catch { /* noop */ } finish(); }, timeout);
+    let child;
+    try {
+      child = spawn(command, { shell: true, windowsHide: true });
+    } catch {
+      resolve({ out: '' }); // spawn threw synchronously (e.g. bad command) -> treat as no output
+      return;
+    }
+    t = setTimeout(() => { try { child.kill(); } catch { /* noop */ } finish(); }, timeout);
     child.stdout?.on('data', (d) => { out += d; });
     child.stderr?.on('data', (d) => { out += d; });
     child.on('error', finish);
@@ -122,7 +129,7 @@ export async function mcpProbe(p) {
   if (!existsSync(path)) return { status: 'skip', detail: 'no MCP config found' };
   let data;
   try { data = JSON.parse(readFileSync(path, 'utf8')); }
-  catch (e) { return { status: 'fail', detail: `MCP config invalid JSON: ${(e && e.message) || e}` }; }
+  catch (e) { return { status: 'fail', detail: `MCP config unreadable or invalid JSON: ${e?.message || e}` }; }
   if (!data || typeof data !== 'object') return { status: 'skip', detail: 'MCP config is not an object' };
 
   const all = { ...(data.mcpServers || {}) };
