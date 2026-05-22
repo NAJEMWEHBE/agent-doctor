@@ -1,0 +1,128 @@
+<div align="center">
+
+<img src="assets/hero.png" alt="agent-doctor" width="100%" />
+
+# 🩺 agent-doctor
+
+**`flutter doctor` for your AI coding stack.**
+Diagnose Claude Code, Codex, Cursor, Gemini CLI, Aider & more — and catch the **silent failures** before they waste your day.
+
+[![npm](https://img.shields.io/npm/v/agent-doctor?color=10b981)](https://www.npmjs.com/package/agent-doctor)
+[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![CI](https://github.com/OWNER/agent-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/agent-doctor/actions)
+[![stars](https://img.shields.io/github/stars/OWNER/agent-doctor?style=social)](https://github.com/OWNER/agent-doctor)
+
+<img src="assets/demo.gif" alt="agent-doctor demo" width="80%" />
+
+</div>
+
+---
+
+## The problem
+
+Your AI coding setup is a stack of moving parts — the agent CLI, MCP servers, a memory system, hooks, API keys, runtimes. They **look** installed. But "installed" ≠ "working."
+
+> Real story that started this project: a popular memory plugin logged **235 prompts** and wrote **0 actual memories** for *days*. Everything looked fine. It was silently dead — discovered only by accident.
+
+Nothing tells you when a piece of your stack quietly breaks. **agent-doctor does.**
+
+## What it does
+
+One command runs **functional probes** (not "does the file exist" — *does it actually work*) and prints a clean PASS / WARN / FAIL report with a one-line fix for every problem:
+
+```
+  🩺 agent-doctor — AI coding stack health
+
+  ✔ PASS  Node.js                    v22.1
+  ✔ PASS  Claude Code CLI            2.1.148
+  ✔ PASS  Codex CLI                  0.5.0
+  ✖ FAIL  claude-mem (writing?)      SILENT FAILURE: 248 inputs logged, 0 memories written
+         ↳ fix: check CLAUDE_MEM_PROVIDER + CLAUDE_CODE_PATH, then restart the worker
+  ✔ PASS  claude-mem worker          HTTP 200
+  – SKIP  Aider                      not installed
+
+  4 pass  0 warn  1 fail  1 skip
+  Action needed — see fixes above.
+```
+
+That **FAIL** line is the whole point: it surfaces the silent failure instantly instead of days later.
+
+## Install
+
+**Try it instantly (no install):**
+```bash
+npx agent-doctor
+```
+
+**Install globally:**
+```bash
+npm install -g agent-doctor
+agent-doctor --deep
+```
+
+**Claude Code (auto-runs every session + adds `/doctor`):**
+```
+/plugin marketplace add OWNER/agent-doctor
+/plugin install agent-doctor@agent-doctor
+```
+Then just type `/doctor` anytime, or let the session-start hook flag problems automatically.
+
+## Supported agents & tools
+
+| Agent / tool | Checked |
+|---|---|
+| Claude Code | CLI alive · settings valid · **memory writing (silent-failure detector)** · worker · MCP |
+| Codex CLI | CLI alive |
+| Cursor | CLI alive |
+| Gemini CLI | CLI alive |
+| Aider | CLI alive |
+| Runtimes | Node · Bun · Python |
+| Any shell / CI | `--json`, `--fail-on fail` |
+
+Absent tools are **skipped**, never failed — only *installed-but-broken* things fail.
+
+## Usage
+
+```bash
+agent-doctor              # full report (default --deep)
+agent-doctor --fast       # quick, no network (used by the session-start hook)
+agent-doctor --json       # machine-readable, for CI/automation
+agent-doctor --fail-on fail   # exit nonzero if anything is broken (CI gate)
+agent-doctor --quiet      # only show problems
+agent-doctor --force      # ignore throttle cache, re-run network probes now
+```
+
+## Add your own checks
+
+Checks are **data**, not code. Drop a `checks.json` in your project or `~/.agent-doctor/checks.json` — it merges over the built-ins by `id`:
+
+```json
+{
+  "checks": [
+    {
+      "id": "keys:openai",
+      "label": "OpenAI API key",
+      "tier": "deep",
+      "throttleHours": 24,
+      "probe": { "type": "http", "url": "https://api.openai.com/v1/models", "expectStatus": 200, "headers": { "Authorization": "Bearer YOUR_KEY" } },
+      "fix": "Set/rotate OPENAI_API_KEY"
+    }
+  ]
+}
+```
+
+Probe types: `exec` (judge by output, tolerates weird exit codes), `http`, `port`, `fileJson`, `memwrite` (the silent-failure detector). PRs adding checks for new tools are welcome — it's usually ~10 lines.
+
+## How it stays fast & honest
+
+- **Two tiers** — `--fast` (no network: configs, processes, DB deltas) auto-runs at session start; `--deep` (version spawns, API pings) on demand. Deep network probes are **throttled/cached**.
+- **Judge by output, not exit code** — some binaries exit nonzero on Windows yet ran fine; a probe passes if the expected output appears.
+- **Never blocks** — the session hook always exits 0. Use `--fail-on` only when you *want* a CI gate.
+
+## Contributing
+
+Issues + PRs welcome. The easiest contribution: **add a check for a tool you use** (see [Add your own checks](#add-your-own-checks)). Good first issues are tagged `add-a-check`.
+
+## License
+
+[MIT](LICENSE) — free forever. If agent-doctor saved you a debugging session, a ⭐ helps others find it.

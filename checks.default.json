@@ -1,0 +1,88 @@
+{
+  "$schema": "https://github.com/OWNER/agent-doctor/blob/main/checks.schema.json",
+  "checks": [
+    {
+      "id": "runtime:node",
+      "label": "Node.js",
+      "tier": "fast",
+      "probe": { "type": "exec", "cmd": "node", "args": ["--version"], "expectOutput": "v\\d+\\.\\d+", "missing": "fail" },
+      "fix": "Install Node.js 18+ from https://nodejs.org"
+    },
+    {
+      "id": "runtime:bun",
+      "label": "Bun",
+      "tier": "fast",
+      "probe": { "type": "exec", "cmd": "bun", "args": ["--version"], "expectOutput": "\\d+\\.\\d+", "missing": "skip", "optional": true },
+      "fix": "Optional. Install from https://bun.sh if a tool needs it"
+    },
+    {
+      "id": "runtime:python",
+      "label": "Python",
+      "tier": "fast",
+      "probe": { "type": "exec", "cmd": "python3", "args": ["--version"], "expectOutput": "Python \\d", "missing": "skip", "optional": true },
+      "fix": "Optional. Install Python 3 if a tool needs it"
+    },
+    {
+      "id": "agent-cli:claude",
+      "label": "Claude Code CLI",
+      "tier": "deep",
+      "probe": { "type": "exec", "cmd": "claude", "args": ["--version"], "expectOutput": "\\d+\\.\\d+", "missing": "skip" },
+      "fix": "Install: irm https://claude.ai/install.ps1 | iex  (Win) or curl -fsSL https://claude.ai/install.sh | sh"
+    },
+    {
+      "id": "agent-cli:codex",
+      "label": "Codex CLI",
+      "tier": "deep",
+      "probe": { "type": "exec", "cmd": "codex", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
+      "fix": "Install: npm i -g @openai/codex"
+    },
+    {
+      "id": "agent-cli:gemini",
+      "label": "Gemini CLI",
+      "tier": "deep",
+      "probe": { "type": "exec", "cmd": "gemini", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
+      "fix": "Install: npm i -g @google/gemini-cli"
+    },
+    {
+      "id": "agent-cli:aider",
+      "label": "Aider",
+      "tier": "deep",
+      "probe": { "type": "exec", "cmd": "aider", "args": ["--version"], "expectOutput": "aider", "missing": "skip" },
+      "fix": "Install: python -m pip install aider-install && aider-install"
+    },
+    {
+      "id": "memory:claude-mem-writing",
+      "label": "claude-mem (writing?)",
+      "tier": "fast",
+      "probe": {
+        "type": "memwrite",
+        "db": "~/.claude-mem/claude-mem.db",
+        "writesQuery": "SELECT COUNT(*) FROM observations",
+        "inputsQuery": "SELECT COUNT(*) FROM user_prompts",
+        "minInputs": 5
+      },
+      "fix": "Memory logging but not writing: check CLAUDE_MEM_PROVIDER + CLAUDE_CODE_PATH in ~/.claude-mem/settings.json, then restart the worker (worker-cli.js restart)"
+    },
+    {
+      "id": "memory:claude-mem-worker",
+      "label": "claude-mem worker",
+      "tier": "fast",
+      "probe": { "type": "http", "url": "http://127.0.0.1:37777/api/readiness", "expectStatus": 200, "skipIfDown": true },
+      "fix": "Worker down: run the claude-mem worker-cli.js restart, or reopen your agent"
+    },
+    {
+      "id": "config:claude-settings",
+      "label": "Claude Code settings.json",
+      "tier": "fast",
+      "probe": { "type": "fileJson", "path": "~/.claude/settings.json", "missing": "skip" },
+      "fix": "Invalid JSON in ~/.claude/settings.json — fix the syntax"
+    },
+    {
+      "id": "config:claude-mem-settings",
+      "label": "claude-mem settings.json",
+      "tier": "fast",
+      "probe": { "type": "fileJson", "path": "~/.claude-mem/settings.json", "requireKeys": ["CLAUDE_MEM_PROVIDER"], "missing": "skip" },
+      "fix": "Set CLAUDE_MEM_PROVIDER (claude|gemini|openrouter) in ~/.claude-mem/settings.json"
+    }
+  ]
+}

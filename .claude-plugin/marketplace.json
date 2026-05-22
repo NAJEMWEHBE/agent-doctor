@@ -1,0 +1,16 @@
+{
+  "name": "agent-doctor",
+  "owner": {
+    "name": "OWNER",
+    "url": "https://github.com/OWNER"
+  },
+  "plugins": [
+    {
+      "name": "agent-doctor",
+      "source": ".",
+      "description": "flutter doctor for your AI coding stack — diagnose Claude Code, Codex, Cursor, Gemini CLI & more. Catches the silent failures.",
+      "version": "0.1.0",
+      "author": { "name": "OWNER" }
+    }
+  ]
+}

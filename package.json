@@ -1,0 +1,51 @@
+{
+  "name": "agent-doctor",
+  "version": "0.1.0",
+  "description": "flutter doctor for your AI coding stack — diagnose Claude Code, Codex, Cursor, Gemini CLI & more. Catches the silent failures.",
+  "type": "module",
+  "bin": {
+    "agent-doctor": "src/cli.js"
+  },
+  "exports": {
+    ".": "./src/engine.js"
+  },
+  "files": [
+    "src/",
+    "checks.default.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "start": "node src/cli.js",
+    "doctor": "node src/cli.js --deep",
+    "test": "node --test"
+  },
+  "keywords": [
+    "ai",
+    "claude-code",
+    "codex",
+    "cursor",
+    "gemini-cli",
+    "aider",
+    "cli",
+    "developer-tools",
+    "health-check",
+    "diagnostics",
+    "mcp",
+    "devtools",
+    "doctor"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OWNER/agent-doctor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/OWNER/agent-doctor/issues"
+  },
+  "homepage": "https://github.com/OWNER/agent-doctor#readme"
+}
