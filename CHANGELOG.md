@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. Format: [Keep a Changelog](https://keepachangelog.com), [SemVer](https://semver.org).
 
+## [0.4.0] — 2026-05-22
+
+### Added
+- **Research-backed "suggest & fix"** in the `/doctor` skill: on FAIL/WARN, opt in to have the agent deep-research a real, source-cited fix and apply it with per-fix confirmation, then re-verify via `--only <id>`. Never auto-applies; never invents a fix. Agent-layer only (zero-dep CLI unchanged); a bare CLI run still shows the static hint.
+
 ## [0.3.0] — 2026-05-22
 
 ### Added

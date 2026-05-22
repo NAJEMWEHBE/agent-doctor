@@ -54,6 +54,10 @@ That **FAIL** line is the whole point: it surfaces the silent failure instantly 
 
 Other "health" tools audit your *config* (`settings.json`, `CLAUDE.md` best practices) — useful, but they can't see a tool that's **installed and configured yet silently broken**. agent-doctor runs **live runtime probes**: it asks *"is the memory actually writing? is the worker answering? does the CLI run?"* — and reports a 0–100 score across dimensions. **They audit your config; agent-doctor checks if your stack is actually alive.** (See [docs/LANDSCAPE.md](docs/LANDSCAPE.md).)
 
+### Suggest & fix (research-backed)
+
+In a research-capable agent (Claude Code, etc.), after the report you can opt in to **fix** the failures, not just see them: for each FAIL the agent deep-researches a real, **source-cited** solution, shows it with a risk note, and applies it **only if you approve** — then re-runs that one check (`--only <id>`) to confirm it went green. Never auto-applies; never invents a fix. A bare `npx agent-doctor` run still shows the static one-line hint.
+
 ## Install
 
 **Try it instantly (no install):**
