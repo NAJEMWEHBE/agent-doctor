@@ -120,17 +120,23 @@ export async function mcpProbe(p) {
 
   const down = [];
   for (const [name, cfg] of Object.entries(all)) {
-    const url = cfg.url || (cfg.type === 'http' || cfg.type === 'sse' ? cfg.url : null);
+    if (!cfg || typeof cfg !== 'object') { down.push(`${name}(bad-config)`); continue; }
+    const url = cfg.url || ((cfg.type === 'http' || cfg.type === 'sse') ? cfg.url : null);
     if (url) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 3000);
       try {
-        const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 3000);
         await fetch(url, { signal: ctrl.signal });
+      } catch {
+        down.push(name);
+      } finally {
         clearTimeout(t);
-      } catch { down.push(name); }
+      }
     } else if (cfg.command) {
       const { out } = runShell(`${cfg.command} --version`, 6000);
       if (out.trim() === '' || NOT_FOUND.test(out)) down.push(`${name}(cmd)`);
+    } else {
+      down.push(`${name}(no url/command)`);
     }
   }
   if (down.length === 0) return { status: 'pass', detail: `${names.length} MCP server(s), all reachable` };

@@ -163,8 +163,9 @@
       "throttleHours": 24,
       "probe": {
         "type": "http",
-        "url": "https://generativelanguage.googleapis.com/v1beta/models?key=${ENV:GEMINI_API_KEY}",
-        "expectStatus": 200
+        "url": "https://generativelanguage.googleapis.com/v1beta/models",
+        "expectStatus": 200,
+        "headers": { "x-goog-api-key": "${ENV:GEMINI_API_KEY}" }
       },
       "fix": "GEMINI_API_KEY rejected — rotate/refresh it"
     },

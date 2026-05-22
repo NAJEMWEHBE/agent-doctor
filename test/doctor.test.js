@@ -40,6 +40,7 @@ test('interpolateEnv substitutes set vars and reports missing ones', () => {
   assert.equal(a.missing.length, 0);
   const b = interpolateEnv('k=${ENV:AD_TEST_MISSING_ZZZ}');
   assert.deepEqual(b.missing, ['AD_TEST_MISSING_ZZZ']);
+  delete process.env.AD_TEST_X; // restore env to keep tests isolated
 });
 
 test('httpProbe skips (does not fail/ping) when a referenced env var is unset', async () => {
