@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadChecks, runChecks, scoreResults } from '../src/engine.js';
-import { execProbe, fileJsonProbe } from '../src/probes.js';
+import { execProbe, fileJsonProbe, interpolateEnv, httpProbe } from '../src/probes.js';
 
 test('loadChecks returns built-in checks', () => {
   const checks = loadChecks();
@@ -31,6 +31,24 @@ test('scoreResults: pass=100, skip excluded, fail/warn lower', () => {
   assert.equal(scoreResults([{ status: 'pass' }, { status: 'fail' }]), 50);
   assert.equal(scoreResults([{ status: 'warn' }]), 50);
   assert.equal(scoreResults([{ status: 'skip' }]), 100); // nothing scorable -> 100
+});
+
+test('interpolateEnv substitutes set vars and reports missing ones', () => {
+  process.env.AD_TEST_X = 'hello';
+  const a = interpolateEnv('v=${ENV:AD_TEST_X}');
+  assert.equal(a.out, 'v=hello');
+  assert.equal(a.missing.length, 0);
+  const b = interpolateEnv('k=${ENV:AD_TEST_MISSING_ZZZ}');
+  assert.deepEqual(b.missing, ['AD_TEST_MISSING_ZZZ']);
+  delete process.env.AD_TEST_X; // restore env to keep tests isolated
+});
+
+test('httpProbe skips (does not fail/ping) when a referenced env var is unset', async () => {
+  const r = await httpProbe({
+    url: 'https://example.invalid/v1/models',
+    headers: { Authorization: 'Bearer ${ENV:AD_NO_SUCH_KEY_ZZZ}' },
+  });
+  assert.equal(r.status, 'skip');
 });
 
 test('runChecks fast tier returns results with statuses', async () => {

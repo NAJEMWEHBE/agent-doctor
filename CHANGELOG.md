@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here. Format: [Keep a Changelog](https://keepachangelog.com), [SemVer](https://semver.org).
 
+## [0.3.0] — 2026-05-22
+
+### Added
+- **MCP server reachability check** (`mcp` probe): reads `~/.claude.json` (root + per-project `mcpServers`) and probes each — remote (url) for reachability, local (command) for launcher resolution. pass/warn/fail by how many are up.
+- **API-key ping checks** (keys dimension): Anthropic / OpenAI / Gemini / Groq. Uses `${ENV:VAR}` interpolation in url/headers; **skips** (never fails/pings) when the key env var is unset. Throttled 24h. Secrets are never printed.
+- `interpolateEnv()` helper for safe env substitution in probes.
+
+### Changed
+- `httpProbe` now supports `${ENV:VAR}` in `url` and `headers`, skipping if a referenced var is unset.
+
 ## [0.2.0] — 2026-05-22
 
 ### Added

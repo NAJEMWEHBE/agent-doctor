@@ -9,7 +9,7 @@
       "name": "agent-doctor",
       "source": ".",
       "description": "flutter doctor for your AI coding stack — diagnose Claude Code, Codex, Cursor, Gemini CLI & more. Catches the silent failures.",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "author": { "name": "NAJEMWEHBE" }
     }
   ]
