@@ -66,6 +66,78 @@
       "fix": "Install: python -m pip install aider-install && aider-install"
     },
     {
+      "id": "agent-cli:cursor",
+      "label": "Cursor CLI",
+      "dimension": "agents",
+      "tier": "deep",
+      "probe": { "type": "exec", "cmd": "cursor-agent", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
+      "fix": "Install: curl https://cursor.com/install -fsSL | bash"
+    },
+    {
+      "id": "agent-cli:copilot",
+      "label": "GitHub Copilot CLI",
+      "dimension": "agents",
+      "tier": "deep",
+      "probe": { "type": "exec", "cmd": "copilot", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
+      "fix": "Install: npm install -g @github/copilot"
+    },
+    {
+      "id": "agent-cli:opencode",
+      "label": "opencode",
+      "dimension": "agents",
+      "tier": "deep",
+      "probe": { "type": "exec", "cmd": "opencode", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
+      "fix": "Install: npm i -g opencode-ai"
+    },
+    {
+      "id": "agent-cli:qwen",
+      "label": "Qwen Code",
+      "dimension": "agents",
+      "tier": "deep",
+      "probe": { "type": "exec", "cmd": "qwen", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
+      "fix": "Install: npm i -g @qwen-code/qwen-code"
+    },
+    {
+      "id": "agent-cli:goose",
+      "label": "Block Goose",
+      "dimension": "agents",
+      "tier": "deep",
+      "probe": { "type": "exec", "cmd": "goose", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
+      "fix": "Install: curl -fsSL https://github.com/aaif-goose/goose/releases/download/stable/download_cli.sh | bash"
+    },
+    {
+      "id": "agent-cli:crush",
+      "label": "Charm Crush",
+      "dimension": "agents",
+      "tier": "deep",
+      "probe": { "type": "exec", "cmd": "crush", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
+      "fix": "Install: npm i -g @charmland/crush"
+    },
+    {
+      "id": "agent-cli:continue",
+      "label": "Continue CLI",
+      "dimension": "agents",
+      "tier": "deep",
+      "probe": { "type": "exec", "cmd": "cn", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
+      "fix": "Install: npm i -g @continuedev/cli"
+    },
+    {
+      "id": "agent-cli:auggie",
+      "label": "Augment Auggie",
+      "dimension": "agents",
+      "tier": "deep",
+      "probe": { "type": "exec", "cmd": "auggie", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
+      "fix": "Install: npm install -g @augmentcode/auggie"
+    },
+    {
+      "id": "agent-cli:cody",
+      "label": "Sourcegraph Cody",
+      "dimension": "agents",
+      "tier": "deep",
+      "probe": { "type": "exec", "cmd": "cody", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
+      "fix": "Install: npm install -g @sourcegraph/cody-cli"
+    },
+    {
       "id": "memory:claude-mem-writing",
       "label": "claude-mem (writing?)",
       "dimension": "memory",

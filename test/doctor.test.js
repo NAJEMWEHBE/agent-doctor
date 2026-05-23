@@ -58,3 +58,37 @@ test('runChecks fast tier returns results with statuses', async () => {
     assert.ok(['pass', 'warn', 'fail', 'skip'].includes(r.status), `valid status: ${r.status}`);
   }
 });
+
+test('v0.5: 9 new agent-cli checks present and shaped to skip-when-absent', () => {
+  const checks = loadChecks();
+  const byId = Object.fromEntries(checks.map((c) => [c.id, c]));
+  const newIds = [
+    'agent-cli:cursor',
+    'agent-cli:copilot',
+    'agent-cli:opencode',
+    'agent-cli:qwen',
+    'agent-cli:goose',
+    'agent-cli:crush',
+    'agent-cli:continue',
+    'agent-cli:auggie',
+    'agent-cli:cody',
+  ];
+  for (const id of newIds) {
+    const c = byId[id];
+    assert.ok(c, `missing check: ${id}`);
+    assert.equal(c.dimension, 'agents', `${id} dimension`);
+    assert.equal(c.tier, 'deep', `${id} tier`);
+    assert.ok(c.fix && c.fix.length > 0, `${id} has a fix hint`);
+    assert.equal(c.probe.type, 'exec', `${id} probe type`);
+    assert.equal(c.probe.missing, 'skip', `${id} skips when absent`);
+    assert.ok(Array.isArray(c.probe.args), `${id} has args`);
+    assert.ok(typeof c.probe.cmd === 'string' && c.probe.cmd.length > 0, `${id} has cmd`);
+  }
+});
+
+test('v0.5: an absent agent-cli binary yields skip (not fail)', () => {
+  const checks = loadChecks();
+  const cursor = checks.find((c) => c.id === 'agent-cli:cursor');
+  const r = execProbe({ ...cursor.probe, cmd: 'definitely-not-a-real-binary-xyz' });
+  assert.equal(r.status, 'skip');
+});
