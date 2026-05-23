@@ -88,6 +88,14 @@ Then just type `/doctor` anytime, or let the session-start hook flag problems au
 | Cursor | CLI alive |
 | Gemini CLI | CLI alive |
 | Aider | CLI alive |
+| GitHub Copilot CLI | CLI alive |
+| opencode | CLI alive |
+| Qwen Code | CLI alive |
+| Block Goose | CLI alive |
+| Charm Crush | CLI alive |
+| Continue CLI | CLI alive |
+| Augment Auggie | CLI alive |
+| Sourcegraph Cody | CLI alive |
 | MCP servers | reachability of configured servers (remote url + local launcher command) |
 | API keys | live ping — Anthropic · OpenAI · Gemini · Groq (skipped unless the key env var is set; never printed) |
 | Runtimes | Node · Bun · Python · git |
