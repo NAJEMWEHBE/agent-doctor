@@ -135,7 +135,7 @@
       "dimension": "agents",
       "tier": "deep",
       "probe": { "type": "exec", "cmd": "cody", "args": ["--version"], "expectOutput": "\\d+\\.\\d+", "missing": "skip" },
-      "fix": "Install: npm install -g @sourcegraph/cody-cli"
+      "fix": "Install: npm install -g @sourcegraph/cody"
     },
     {
       "id": "memory:claude-mem-writing",
