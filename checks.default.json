@@ -46,7 +46,7 @@
       "label": "Codex CLI",
       "dimension": "agents",
       "tier": "deep",
-      "probe": { "type": "exec", "cmd": "codex", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
+      "probe": { "type": "exec", "cmd": "codex", "args": ["--version"], "expectOutput": "\\d+\\.\\d+", "missing": "skip" },
       "fix": "Install: npm i -g @openai/codex"
     },
     {
@@ -54,7 +54,7 @@
       "label": "Gemini CLI",
       "dimension": "agents",
       "tier": "deep",
-      "probe": { "type": "exec", "cmd": "gemini", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
+      "probe": { "type": "exec", "cmd": "gemini", "args": ["--version"], "expectOutput": "\\d+\\.\\d+", "missing": "skip" },
       "fix": "Install: npm i -g @google/gemini-cli"
     },
     {
@@ -67,10 +67,10 @@
     },
     {
       "id": "agent-cli:cursor",
-      "label": "Cursor CLI",
+      "label": "Cursor Agent CLI",
       "dimension": "agents",
       "tier": "deep",
-      "probe": { "type": "exec", "cmd": "cursor-agent", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
+      "probe": { "type": "exec", "cmd": "cursor-agent", "args": ["--version"], "expectOutput": "\\d+\\.\\d+", "missing": "skip" },
       "fix": "Install: curl https://cursor.com/install -fsSL | bash"
     },
     {
@@ -78,7 +78,7 @@
       "label": "GitHub Copilot CLI",
       "dimension": "agents",
       "tier": "deep",
-      "probe": { "type": "exec", "cmd": "copilot", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
+      "probe": { "type": "exec", "cmd": "copilot", "args": ["--version"], "expectOutput": "\\d+\\.\\d+", "missing": "skip" },
       "fix": "Install: npm install -g @github/copilot"
     },
     {
@@ -86,7 +86,7 @@
       "label": "opencode",
       "dimension": "agents",
       "tier": "deep",
-      "probe": { "type": "exec", "cmd": "opencode", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
+      "probe": { "type": "exec", "cmd": "opencode", "args": ["--version"], "expectOutput": "\\d+\\.\\d+", "missing": "skip" },
       "fix": "Install: npm i -g opencode-ai"
     },
     {
@@ -94,7 +94,7 @@
       "label": "Qwen Code",
       "dimension": "agents",
       "tier": "deep",
-      "probe": { "type": "exec", "cmd": "qwen", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
+      "probe": { "type": "exec", "cmd": "qwen", "args": ["--version"], "expectOutput": "\\d+\\.\\d+", "missing": "skip" },
       "fix": "Install: npm i -g @qwen-code/qwen-code"
     },
     {
@@ -102,7 +102,7 @@
       "label": "Block Goose",
       "dimension": "agents",
       "tier": "deep",
-      "probe": { "type": "exec", "cmd": "goose", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
+      "probe": { "type": "exec", "cmd": "goose", "args": ["--version"], "expectOutput": "\\d+\\.\\d+", "missing": "skip" },
       "fix": "Install: curl -fsSL https://github.com/aaif-goose/goose/releases/download/stable/download_cli.sh | bash"
     },
     {
@@ -110,7 +110,7 @@
       "label": "Charm Crush",
       "dimension": "agents",
       "tier": "deep",
-      "probe": { "type": "exec", "cmd": "crush", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
+      "probe": { "type": "exec", "cmd": "crush", "args": ["--version"], "expectOutput": "\\d+\\.\\d+", "missing": "skip" },
       "fix": "Install: npm i -g @charmland/crush"
     },
     {
@@ -118,7 +118,7 @@
       "label": "Continue CLI",
       "dimension": "agents",
       "tier": "deep",
-      "probe": { "type": "exec", "cmd": "cn", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
+      "probe": { "type": "exec", "cmd": "cn", "args": ["--version"], "expectOutput": "\\d+\\.\\d+", "missing": "skip" },
       "fix": "Install: npm i -g @continuedev/cli"
     },
     {
@@ -126,7 +126,7 @@
       "label": "Augment Auggie",
       "dimension": "agents",
       "tier": "deep",
-      "probe": { "type": "exec", "cmd": "auggie", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
+      "probe": { "type": "exec", "cmd": "auggie", "args": ["--version"], "expectOutput": "\\d+\\.\\d+", "missing": "skip" },
       "fix": "Install: npm install -g @augmentcode/auggie"
     },
     {
@@ -134,7 +134,7 @@
       "label": "Sourcegraph Cody",
       "dimension": "agents",
       "tier": "deep",
-      "probe": { "type": "exec", "cmd": "cody", "args": ["--version"], "expectOutput": "\\d", "missing": "skip" },
+      "probe": { "type": "exec", "cmd": "cody", "args": ["--version"], "expectOutput": "\\d+\\.\\d+", "missing": "skip" },
       "fix": "Install: npm install -g @sourcegraph/cody-cli"
     },
     {
