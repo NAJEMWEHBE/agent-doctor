@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. Format: [Keep a Changelog](https://keepachangelog.com), [SemVer](https://semver.org).
 
+## [0.5.0] — 2026-05-23
+
+### Added
+- **Broader agent-CLI coverage** — +9 checks in the `agents` dimension: Cursor (`cursor-agent`), GitHub Copilot CLI (`copilot`), opencode, Qwen Code (`qwen`), Block Goose (`goose`), Charm Crush (`crush`), Continue (`cn`), Augment Auggie (`auggie`), Sourcegraph Cody (`cody`). Each is a judge-by-output `--version` exec probe; absent tools SKIP (never FAIL). Also backs the previously-advertised Cursor row. Install hints verified against official docs.
+
 ## [0.4.0] — 2026-05-22
 
 ### Added
