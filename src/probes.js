@@ -27,28 +27,6 @@ function runShell(command, timeout = 15000) {
   } catch { return { out: '', code: null }; }
 }
 
-// Async shell exec (non-blocking) — for parallel probes that must not freeze the event loop.
-function runShellAsync(command, timeout = 8000) {
-  return new Promise((resolve) => {
-    let out = '';
-    let settled = false;
-    let t;
-    const finish = () => { if (!settled) { settled = true; clearTimeout(t); resolve({ out }); } };
-    let child;
-    try {
-      child = spawn(command, { shell: true, windowsHide: true });
-    } catch {
-      resolve({ out: '' }); // spawn threw synchronously (e.g. bad command) -> treat as no output
-      return;
-    }
-    t = setTimeout(() => { try { child.kill(); } catch { /* noop */ } finish(); }, timeout);
-    child.stdout?.on('data', (d) => { out += d; });
-    child.stderr?.on('data', (d) => { out += d; });
-    child.on('error', finish);
-    child.on('close', finish);
-  });
-}
-
 // shell:false + args array — for real binaries (python/sqlite3); ENOENT = absent, no quoting issues.
 function runExec(cmd, args = [], timeout = 8000) {
   try {
@@ -119,11 +97,214 @@ export async function httpProbe(p) {
   }
 }
 
+// ── MCP handshake probe ───────────────────────────────────────────────────────
+// Probe the PROTOCOL, not the port. Run the real JSON-RPC MCP handshake against
+// every configured server and judge by what it actually speaks:
+//   initialize -> notifications/initialized -> tools/list
+// Remote servers (url): HTTP JSON-RPC POST (Streamable HTTP; parses a JSON body
+//   or an SSE `data:` frame). Local servers (command): spawn + speak stdio.
+// Per-server verdict:
+//   GOOD = handshake ok + >=1 tool   (the MCP twin of "memory actually wrote")
+//   WARN = speaks MCP but 0 tools     (silent-failure analogue for MCP)
+//   AUTH = 401 / Bearer challenge     (valid endpoint, needs auth)
+//   DOWN = unreachable / not MCP / crashed on init / bad JSON-RPC
+// Roll-up across all servers: pass = all GOOD, fail = all DOWN/AUTH,
+//   warn = anything mixed or any WARN. skip = nothing configured.
+const MCP_PROTOCOL_VERSION = '2025-06-18';
+const MCP_TIMEOUT_MS = 3000;
+
+// Minimal JSON-RPC request builders for the handshake.
+function mcpInitRequest(id) {
+  return {
+    jsonrpc: '2.0',
+    id,
+    method: 'initialize',
+    params: {
+      protocolVersion: MCP_PROTOCOL_VERSION,
+      capabilities: {},
+      clientInfo: { name: 'agent-doctor', version: '0' },
+    },
+  };
+}
+const MCP_INITIALIZED_NOTIFICATION = { jsonrpc: '2.0', method: 'notifications/initialized' };
+function mcpToolsListRequest(id) {
+  return { jsonrpc: '2.0', id, method: 'tools/list', params: {} };
+}
+
+// A streamable-HTTP MCP response can be a plain JSON body OR an SSE stream of
+// `event:`/`data:` lines. Extract the first JSON-RPC object either way.
+function parseMcpHttpBody(text, contentType = '') {
+  const t = (text || '').trim();
+  if (!t) return null;
+  if (contentType.includes('text/event-stream') || /^event:|^data:/m.test(t)) {
+    for (const line of t.split(/\r?\n/)) {
+      const m = line.match(/^data:\s*(.*)$/);
+      if (m && m[1].trim() && m[1].trim() !== '[DONE]') {
+        try { return JSON.parse(m[1]); } catch { /* keep scanning */ }
+      }
+    }
+    return null;
+  }
+  try { return JSON.parse(t); } catch { return null; }
+}
+
+// Count tools from a JSON-RPC `tools/list` result, tolerating shape variance.
+function countMcpTools(rpc) {
+  const tools = rpc && rpc.result && rpc.result.tools;
+  return Array.isArray(tools) ? tools.length : 0;
+}
+
+// Probe one REMOTE (url-based) MCP server over Streamable HTTP JSON-RPC.
+// Returns { verdict, tools, note }.
+async function probeRemoteMcp(cfg) {
+  const headers = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json, text/event-stream',
+    'MCP-Protocol-Version': MCP_PROTOCOL_VERSION,
+    ...(cfg.headers && typeof cfg.headers === 'object' ? cfg.headers : {}),
+  };
+  // Allow ${ENV:VAR} in configured header values (e.g. Authorization) without printing them.
+  for (const [k, v] of Object.entries(headers)) {
+    if (typeof v === 'string' && v.includes('${ENV:')) headers[k] = interpolateEnv(v).out;
+  }
+
+  const post = async (body) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), MCP_TIMEOUT_MS);
+    try {
+      const res = await fetch(cfg.url, {
+        method: 'POST', headers, body: JSON.stringify(body), signal: ctrl.signal,
+      });
+      const ct = res.headers.get('content-type') || '';
+      const text = await res.text().catch(() => '');
+      const sid = res.headers.get('mcp-session-id');
+      return { status: res.status, ct, text, sid };
+    } finally { clearTimeout(t); }
+  };
+
+  let init;
+  try { init = await post(mcpInitRequest(1)); }
+  catch (e) { return { verdict: 'DOWN', tools: 0, note: `unreachable: ${(e && e.message) || e}` }; }
+
+  if (init.status === 401 || init.status === 403) {
+    return { verdict: 'AUTH', tools: 0, note: `HTTP ${init.status} (auth required)` };
+  }
+  const initRpc = parseMcpHttpBody(init.text, init.ct);
+  if (!initRpc || initRpc.error || !initRpc.result) {
+    if (init.status >= 400) return { verdict: 'DOWN', tools: 0, note: `HTTP ${init.status}` };
+    return { verdict: 'DOWN', tools: 0, note: 'no valid initialize response (not MCP?)' };
+  }
+  // Carry the negotiated session id forward, if the server issued one.
+  if (init.sid) headers['Mcp-Session-Id'] = init.sid;
+
+  try { await post(MCP_INITIALIZED_NOTIFICATION); } catch { /* notification is best-effort */ }
+
+  let list;
+  try { list = await post(mcpToolsListRequest(2)); }
+  catch (e) { return { verdict: 'DOWN', tools: 0, note: `tools/list failed: ${(e && e.message) || e}` }; }
+  if (list.status === 401 || list.status === 403) {
+    return { verdict: 'AUTH', tools: 0, note: `HTTP ${list.status} on tools/list` };
+  }
+  const listRpc = parseMcpHttpBody(list.text, list.ct);
+  if (!listRpc || listRpc.error) {
+    return { verdict: 'WARN', tools: 0, note: 'initialized but tools/list errored' };
+  }
+  const n = countMcpTools(listRpc);
+  return n > 0
+    ? { verdict: 'GOOD', tools: n, note: `${n} tool(s)` }
+    : { verdict: 'WARN', tools: 0, note: 'speaks MCP but 0 tools' };
+}
+
+// Quote one shell token so paths/args with spaces survive `shell: true`.
+// (We pass a single command string — not an args array — to both keep PATH
+// resolution for bare launchers like npx/uvx AND avoid the DEP0190 warning that
+// args-with-shell triggers. Tokens with no shell-special chars pass through bare.)
+function quoteArg(s) {
+  const str = String(s);
+  if (str === '') return '""';
+  if (/^[A-Za-z0-9_./:\\-]+$/.test(str)) return str;
+  return `"${str.replace(/"/g, '\\"')}"`;
+}
+
+// Probe one LOCAL (command-based) MCP server over stdio JSON-RPC.
+// Spawns the configured command, writes newline-delimited JSON-RPC, reads replies.
+// Returns { verdict, tools, note }.
+function probeLocalMcp(cfg) {
+  return new Promise((resolve) => {
+    let child;
+    let settled = false;
+    let buf = '';
+    let timer;
+    const env = { ...process.env, ...(cfg.env && typeof cfg.env === 'object' ? cfg.env : {}) };
+
+    const finish = (verdict, tools, note) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try { child && child.kill(); } catch { /* noop */ }
+      resolve({ verdict, tools, note });
+    };
+
+    // Build a single quoted command string: keeps PATH resolution for bare
+    // launchers (npx/uvx/node/python) while surviving paths/args with spaces.
+    const cmdLine = [cfg.command, ...(Array.isArray(cfg.args) ? cfg.args : [])]
+      .map(quoteArg).join(' ');
+    try {
+      child = spawn(cmdLine, {
+        stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true, shell: true, env,
+      });
+    } catch (e) {
+      finish('DOWN', 0, `spawn failed: ${(e && e.message) || e}`);
+      return;
+    }
+
+    timer = setTimeout(() => finish('DOWN', 0, 'no MCP handshake within timeout'), MCP_TIMEOUT_MS);
+    child.on('error', (e) => finish('DOWN', 0, `launch error: ${(e && e.code) || e}`));
+    // If the process dies before we get a tools/list reply, it crashed on init.
+    child.on('close', () => finish('DOWN', 0, 'process exited before handshake completed'));
+
+    const send = (obj) => {
+      try { child.stdin.write(`${JSON.stringify(obj)}\n`); } catch { /* pipe may be gone */ }
+    };
+
+    let initialized = false;
+    child.stdout.on('data', (d) => {
+      buf += d.toString();
+      // Process complete newline-delimited JSON-RPC messages.
+      let nl;
+      while ((nl = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (!line) continue;
+        let msg;
+        try { msg = JSON.parse(line); } catch { continue; } // ignore non-JSON log noise
+        if (!initialized && msg.id === 1 && msg.result) {
+          initialized = true;
+          send(MCP_INITIALIZED_NOTIFICATION);
+          send(mcpToolsListRequest(2));
+        } else if (!initialized && msg.id === 1 && msg.error) {
+          finish('DOWN', 0, 'initialize returned an error');
+          return;
+        } else if (msg.id === 2) {
+          if (msg.error) { finish('WARN', 0, 'initialized but tools/list errored'); return; }
+          const n = countMcpTools(msg);
+          if (n > 0) finish('GOOD', n, `${n} tool(s)`);
+          else finish('WARN', 0, 'speaks MCP but 0 tools');
+          return;
+        }
+      }
+    });
+
+    // Kick off the handshake.
+    send(mcpInitRequest(1));
+  });
+}
+
 // mcp: { config? } — read an MCP config file (~/.claude.json by default), find
-// configured servers (root + per-project mcpServers), and probe each:
-//   - remote (url/http/sse): is the endpoint reachable?
-//   - local (command): does the launcher binary resolve on PATH?
-// pass = all reachable, warn = some down, fail = all down, skip = none configured.
+// configured servers (root + per-project mcpServers), and run the REAL MCP
+// handshake against each (remote = HTTP/SSE JSON-RPC, local = stdio JSON-RPC).
+// pass = all GOOD, warn = any WARN (0 tools) or mixed up/down,
+// fail = all DOWN/AUTH, skip = none configured.
 export async function mcpProbe(p) {
   const path = expandPath(p.config || '~/.claude.json');
   if (!existsSync(path)) return { status: 'skip', detail: 'no MCP config found' };
@@ -141,27 +322,37 @@ export async function mcpProbe(p) {
   const names = Object.keys(all);
   if (names.length === 0) return { status: 'skip', detail: 'no MCP servers configured' };
 
-  // Probe servers concurrently — slow/unreachable ones shouldn't serialize the 3s timeouts.
+  // Handshake every server concurrently — slow/unreachable ones must not serialize the timeouts.
   const probeOne = async ([name, cfg]) => {
-    if (!cfg || typeof cfg !== 'object') return `${name}(bad-config)`;
-    const url = cfg.url;
-    if (url) {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 3000);
-      try { await fetch(url, { signal: ctrl.signal }); return null; }
-      catch { return name; }
-      finally { clearTimeout(t); }
-    }
-    if (cfg.command) {
-      const { out } = await runShellAsync(`${cfg.command} --version`, 6000);
-      return (out.trim() === '' || NOT_FOUND.test(out)) ? `${name}(cmd)` : null;
-    }
-    return `${name}(no url/command)`;
+    if (!cfg || typeof cfg !== 'object') return { name, verdict: 'DOWN', note: 'bad config' };
+    let r;
+    if (cfg.url) r = await probeRemoteMcp(cfg);
+    else if (cfg.command) r = await probeLocalMcp(cfg);
+    else return { name, verdict: 'DOWN', note: 'no url/command' };
+    return { name, ...r };
   };
-  const down = (await Promise.all(Object.entries(all).map(probeOne))).filter(Boolean);
-  if (down.length === 0) return { status: 'pass', detail: `${names.length} MCP server(s), all reachable` };
-  if (down.length < names.length) return { status: 'warn', detail: `${names.length} configured, down: ${down.join(', ')}` };
-  return { status: 'fail', detail: `all ${names.length} MCP server(s) unreachable: ${down.join(', ')}` };
+  const reports = await Promise.all(Object.entries(all).map(probeOne));
+
+  const good = reports.filter((r) => r.verdict === 'GOOD');
+  const warn = reports.filter((r) => r.verdict === 'WARN');
+  const auth = reports.filter((r) => r.verdict === 'AUTH');
+  const down = reports.filter((r) => r.verdict === 'DOWN');
+
+  // Compact "name(note)" list for the failing/odd servers, shown in the report.
+  const label = (r) => `${r.name} (${r.verdict}${r.note ? `: ${r.note}` : ''})`;
+
+  if (good.length === names.length) {
+    return { status: 'pass', detail: `${names.length} MCP server(s), all handshake GOOD` };
+  }
+  if (good.length === 0 && warn.length === 0) {
+    const bad = [...auth, ...down].map(label).join(', ');
+    return { status: 'fail', detail: `no MCP server completed a handshake: ${bad}` };
+  }
+  const problems = [...warn, ...auth, ...down].map(label).join(', ');
+  return {
+    status: 'warn',
+    detail: `${good.length}/${names.length} GOOD; ${problems}`,
+  };
 }
 
 // port: { host?, port, timeoutMs? }

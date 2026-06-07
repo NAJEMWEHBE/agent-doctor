@@ -50,7 +50,7 @@
         "writesQuery": { "type": "string", "description": "memwrite: SQL returning the count of stored memories." },
         "inputsQuery": { "type": "string", "description": "memwrite: SQL returning the count of inputs/prompts." },
         "minInputs": { "type": "integer", "description": "memwrite: minimum inputs before flagging a silent failure (default 5)." },
-        "config": { "type": "string", "description": "mcp: path to the MCP config file (default ~/.claude.json)." },
+        "config": { "type": "string", "description": "mcp: path to the MCP config file (default ~/.claude.json). Probed servers run the real JSON-RPC handshake (initialize -> notifications/initialized -> tools/list); 0 tools advertised is WARN." },
         "timeoutMs": { "type": "integer", "description": "exec/http: timeout in milliseconds." }
       },
       "additionalProperties": false
