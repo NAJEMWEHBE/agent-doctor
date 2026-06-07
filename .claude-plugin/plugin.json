@@ -5,6 +5,5 @@
   "author": { "name": "NAJEMWEHBE" },
   "homepage": "https://github.com/NAJEMWEHBE/agent-doctor",
   "license": "MIT",
-  "keywords": ["health-check", "diagnostics", "doctor", "claude-code", "mcp", "devtools"],
-  "hooks": "./hooks/hooks.json"
+  "keywords": ["health-check", "diagnostics", "doctor", "claude-code", "mcp", "devtools"]
 }
