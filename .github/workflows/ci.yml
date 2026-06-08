@@ -21,7 +21,7 @@ jobs:
       - name: Install (no runtime deps)
         run: npm ci || npm install
       - name: Unit tests
-        run: node --test
+        run: npm test
       - name: Smoke — fast tier produces valid JSON
         run: node src/cli.js --fast --json
       - name: Smoke — help + version

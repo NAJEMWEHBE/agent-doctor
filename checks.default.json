@@ -193,11 +193,11 @@
     },
     {
       "id": "mcp:servers",
-      "label": "MCP servers reachable",
+      "label": "MCP servers speak the protocol",
       "dimension": "mcp",
       "tier": "deep",
       "probe": { "type": "mcp", "config": "~/.claude.json" },
-      "fix": "An MCP server is unreachable: check its url, or that its launcher command (npx/uvx/node/python) is installed + on PATH"
+      "fix": "An MCP server failed its handshake: DOWN = unreachable or crashed on initialize (check url / that its launcher npx/uvx/node/python is installed + on PATH); AUTH = needs a Bearer token; WARN '0 tools' = it speaks MCP but advertises no tools (check the server's config/version)"
     },
     {
       "id": "keys:anthropic",

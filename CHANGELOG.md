@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. Format: [Keep a Changelog](https://keepachangelog.com), [SemVer](https://semver.org).
 
+## [Unreleased]
+
+### Changed
+- **Real MCP handshake probe** (`mcp` probe) — replaces reachability-only checking with the actual JSON-RPC handshake: `initialize` (protocol `2025-06-18`) → `notifications/initialized` → `tools/list`. Remote servers (`url`) speak Streamable-HTTP JSON-RPC (parses a JSON body or an SSE `data:` frame, carries the negotiated `Mcp-Session-Id`, honors `${ENV:VAR}` in headers); local servers (`command`) are spawned and probed over newline-delimited stdio JSON-RPC. Per-server verdicts: **GOOD** (handshake ok + ≥1 tool), **WARN** ("speaks MCP but 0 tools" — the MCP twin of the memory silent-failure), **AUTH** (401/403 Bearer challenge), **DOWN** (unreachable / not MCP / crashed on init). Roll-up: pass = all GOOD, warn = any WARN or mixed up/down, fail = all DOWN/AUTH. Keeps the 3s timeout and probes servers concurrently. Local spawns now quote command/args so launcher paths with spaces work (also clears the DEP0190 warning).
+
 ## [0.5.0] — 2026-05-23
 
 ### Added
