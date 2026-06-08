@@ -5,7 +5,11 @@
 //   "empty" -> initialize ok, tools/list returns 0 tools  (WARN: speaks MCP, 0 tools)
 //   "crash" -> exit immediately on initialize               (DOWN)
 //   "noise" -> print non-JSON log lines, then behave like "good"
-const mode = process.argv[2] || 'good';
+const mode = process.argv[2];
+// Defense-in-depth: if `node --test` discovers this fixture (no mode arg) instead of a
+// test spawning it as a server, exit immediately so it never blocks on stdin (a bare
+// `node --test` once recursed into test/fixtures/ and hung here for the full CI timeout).
+if (!mode) process.exit(0);
 
 if (mode === 'crash') {
   // Read one line then die before replying — simulates a server that crashes on init.
