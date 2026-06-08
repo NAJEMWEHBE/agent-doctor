@@ -260,6 +260,12 @@ function probeLocalMcp(cfg) {
 
     timer = setTimeout(() => finish('DOWN', 0, 'no MCP handshake within timeout'), MCP_TIMEOUT_MS);
     child.on('error', (e) => finish('DOWN', 0, `launch error: ${(e && e.code) || e}`));
+    // Swallow async stdin pipe errors (EPIPE). When a server is down/crashed it closes
+    // stdin before we write the handshake; the write's EPIPE is emitted asynchronously
+    // on the stream, which the try/catch around .write() below CANNOT catch -> it was an
+    // unhandled 'error' that crashed the run (a flaky CI failure on the all-down case).
+    // The DOWN verdict still comes from 'close'/timeout; we just need to not throw.
+    child.stdin.on('error', () => {});
     // If the process dies before we get a tools/list reply, it crashed on init.
     child.on('close', () => finish('DOWN', 0, 'process exited before handshake completed'));
 
