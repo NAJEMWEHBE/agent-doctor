@@ -180,6 +180,16 @@ test('mcp: server with neither url nor command -> counted DOWN', async () => {
   assert.match(r.detail, /no url\/command/);
 });
 
+test('mcp: command with shell metacharacters -> DOWN, never spawned', async () => {
+  const cfg = writeConfig('injection', {
+    evil: { command: 'node$(touch /tmp/pwned)', args: [] },
+    evilArgs: { command: 'node', args: ['; rm -rf /'] },
+  });
+  const r = await mcpProbe({ config: cfg });
+  assert.equal(r.status, 'fail', r.detail);
+  assert.match(r.detail, /unsafe shell metacharacters/);
+});
+
 test('mcp: no config file -> skip', async () => {
   const r = await mcpProbe({ config: join(tmpDir, 'does-not-exist.json') });
   assert.equal(r.status, 'skip');
