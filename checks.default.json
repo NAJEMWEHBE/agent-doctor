@@ -34,6 +34,14 @@
       "fix": "Optional. Install Python 3 if a tool needs it"
     },
     {
+      "id": "runtime:ollama",
+      "label": "Ollama",
+      "dimension": "runtime",
+      "tier": "deep",
+      "probe": { "type": "http", "url": "http://127.0.0.1:11434/api/tags", "expectStatus": 200, "skipIfDown": true },
+      "fix": "Start Ollama and pull at least one model"
+    },
+    {
       "id": "agent-cli:claude",
       "label": "Claude Code CLI",
       "dimension": "agents",

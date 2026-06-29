@@ -92,3 +92,19 @@ test('v0.5: an absent agent-cli binary yields skip (not fail)', () => {
   const r = execProbe({ ...cursor.probe, cmd: 'definitely-not-a-real-binary-xyz' });
   assert.equal(r.status, 'skip');
 });
+
+test('ollama runtime check probes local tags endpoint and skips when down', async () => {
+  const checks = loadChecks();
+  const ollama = checks.find((c) => c.id === 'runtime:ollama');
+
+  assert.ok(ollama, 'missing Ollama runtime check');
+  assert.equal(ollama.dimension, 'runtime');
+  assert.equal(ollama.tier, 'deep');
+  assert.equal(ollama.probe.type, 'http');
+  assert.equal(ollama.probe.url, 'http://127.0.0.1:11434/api/tags');
+  assert.equal(ollama.probe.skipIfDown, true);
+  assert.ok(ollama.fix.includes('Ollama'));
+
+  const r = await httpProbe({ ...ollama.probe, url: 'http://127.0.0.1:9/api/tags', timeoutMs: 50 });
+  assert.equal(r.status, 'skip');
+});
