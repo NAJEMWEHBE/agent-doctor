@@ -59,7 +59,7 @@ test('runChecks fast tier returns results with statuses', async () => {
   }
 });
 
-test('v0.5: 9 new agent-cli checks present and shaped to skip-when-absent', () => {
+test('v0.5: agent-cli checks present and shaped to skip-when-absent', () => {
   const checks = loadChecks();
   const byId = Object.fromEntries(checks.map((c) => [c.id, c]));
   const newIds = [
@@ -70,6 +70,7 @@ test('v0.5: 9 new agent-cli checks present and shaped to skip-when-absent', () =
     'agent-cli:goose',
     'agent-cli:crush',
     'agent-cli:continue',
+    'agent-cli:cline',
     'agent-cli:auggie',
     'agent-cli:cody',
   ];
