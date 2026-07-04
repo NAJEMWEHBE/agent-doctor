@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import os from 'node:os';
 import {
-  execProbe, httpProbe, portProbe, fileJsonProbe, memwriteProbe, mcpProbe, expandPath,
+  execProbe, httpProbe, portProbe, fileJsonProbe, memwriteProbe, mcpProbe, ollamaTagsProbe, expandPath,
 } from './probes.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -18,6 +18,7 @@ const PROBES = {
   fileJson: fileJsonProbe,
   memwrite: memwriteProbe,
   mcp: mcpProbe,
+  ollamaTags: ollamaTagsProbe,
 };
 
 function loadJson(path) {

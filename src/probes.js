@@ -97,6 +97,34 @@ export async function httpProbe(p) {
   }
 }
 
+// ollamaTags: { url?, timeoutMs?, skipIfDown? }
+// Checks that Ollama is reachable and has at least one pulled model.
+export async function ollamaTagsProbe(p) {
+  const url = p.url || 'http://127.0.0.1:11434/api/tags';
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), p.timeoutMs || 4000);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) return { status: 'fail', detail: `HTTP ${res.status}` };
+    const data = await res.json();
+    const models = Array.isArray(data?.models) ? data.models : [];
+    if (models.length === 0) {
+      return { status: 'warn', detail: 'Ollama is running but no models are pulled' };
+    }
+    const names = models
+      .map((m) => m?.name || m?.model)
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(', ');
+    return { status: 'pass', detail: names ? `${models.length} model(s): ${names}` : `${models.length} model(s)` };
+  } catch (e) {
+    if (p.skipIfDown) return { status: 'skip', detail: 'Ollama not running' };
+    return { status: 'fail', detail: `unreachable: ${(e && e.message) || e}` };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 // ── MCP handshake probe ───────────────────────────────────────────────────────
 // Probe the PROTOCOL, not the port. Run the real JSON-RPC MCP handshake against
 // every configured server and judge by what it actually speaks:
