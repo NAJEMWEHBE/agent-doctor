@@ -2,8 +2,9 @@
 // agent-doctor — flutter doctor for your AI coding stack.
 import { writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { runChecks } from './engine.js';
+import { runChecks, cwdOverrideInfo } from './engine.js';
 import { render, renderJson } from './render.js';
+import { trustDir, untrustDir, listTrusted, summarizeChecks } from './trust.js';
 
 const CHECKS_TEMPLATE = {
   checks: [
@@ -36,7 +37,46 @@ function initChecks() {
     process.stderr.write(`Error: could not write ${target}: ${e?.message || e}\n`);
     return 1;
   }
-  process.stdout.write(`Wrote starter ${target}\nEdit it to add your own checks (merged over built-ins by id), then run: agent-doctor\n`);
+  process.stdout.write(`Wrote starter ${target}\nEdit it to add your own checks (merged over built-ins by id), then run: agent-doctor trust && agent-doctor\n`);
+  return 0;
+}
+
+// `agent-doctor trust` — pin this project's checks.json so it (and only it) may run.
+// `agent-doctor trust --list` — show every trusted path and whether it is still current.
+function trustCmd(argv) {
+  if (argv.includes('--list')) {
+    const rows = listTrusted();
+    if (!rows.length) { process.stdout.write('No trusted checks.json paths.\n'); return 0; }
+    for (const r of rows) {
+      const flag = r.status === 'ok' ? 'ok' : r.status === 'stale' ? 'STALE (edited — re-trust)' : 'MISSING';
+      process.stdout.write(`${r.status === 'ok' ? '✓' : '✗'} ${r.path}  [${flag}]\n`);
+    }
+    return 0;
+  }
+  const dir = process.cwd();
+  const target = join(dir, 'checks.json');
+  if (!existsSync(target)) {
+    process.stderr.write(`No checks.json in ${dir} to trust. (Run \`agent-doctor init\` to create one.)\n`);
+    return 1;
+  }
+  const { total, runCmd } = summarizeChecks(target);
+  const res = trustDir(dir);
+  if (!res.ok) { process.stderr.write(`Could not record trust for ${target}.\n`); return 1; }
+  process.stdout.write(
+    `Trusted ${target}\n`
+    + `  ${total} check(s), ${runCmd} that run a command (exec/mcp)\n`
+    + `  sha256 ${res.hash.slice(0, 16)}…  (edits re-lock it)\n`
+    + `  These now run on \`agent-doctor\` and on session-start.\n`,
+  );
+  return 0;
+}
+
+function untrustCmd() {
+  const dir = process.cwd();
+  const { removed } = untrustDir(dir);
+  process.stdout.write(removed
+    ? `Untrusted ${dir} — its checks.json will no longer run.\n`
+    : `${dir} was not trusted; nothing to do.\n`);
   return 0;
 }
 
@@ -46,8 +86,15 @@ const HELP = `
 Usage:
   agent-doctor [options]
   agent-doctor init          Write a starter checks.json in the current directory
+  agent-doctor trust         Trust this dir's checks.json so it may run (hash-pinned)
+  agent-doctor trust --list  List trusted checks.json paths and their status
+  agent-doctor untrust       Revoke trust for this dir's checks.json
 
 Reports a 0–100 health score plus per-dimension PASS/WARN/FAIL with fixes.
+
+A checks.json in the current directory is UNTRUSTED until \`agent-doctor trust\`:
+a cloned repo can ship one, and every probe can run a command or read a secret,
+so it is ignored (by both the CLI and the session-start hook) until you trust it.
 
 Options:
   --fast            Fast tier only (no network/spawns). Used by session-start hooks.
@@ -97,6 +144,8 @@ async function main() {
     break;
   }
   if (sub === 'init') return initChecks();
+  if (sub === 'trust') return trustCmd(argv);
+  if (sub === 'untrust') return untrustCmd();
   const o = parseArgs(process.argv.slice(2));
   if (o.help) { process.stdout.write(HELP + '\n'); return 0; }
   if (o.version) {
@@ -118,6 +167,16 @@ async function main() {
       process.stdout.write(`🩺 agent-doctor: ${fails} fail / ${warns} warn — run /doctor for details + fixes.\n`);
     }
     return 0;
+  }
+
+  // Interactive runs surface an ignored, untrusted cwd/checks.json (once, on stderr
+  // so --json stdout stays clean). The hook path above stays silent by design.
+  const cwd = cwdOverrideInfo();
+  if (cwd.present && !cwd.trusted) {
+    process.stderr.write(
+      `Ignoring untrusted ./checks.json (${cwd.count} check(s)). `
+      + 'Review it, then run `agent-doctor trust` to enable.\n',
+    );
   }
 
   const results = await runChecks({ tier: o.tier, force: o.force, only: o.only });
