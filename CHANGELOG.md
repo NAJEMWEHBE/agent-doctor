@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+## [0.6.1] — 2026-07-15
+
+### Security
+- **Built-in probes no longer inherit the scanned repo's working directory (Windows CWD command-shadowing → RCE).** `execProbe` (and the local `mcp` stdio spawn) run bare command names through `spawnSync`/`spawn` with `shell:true`. Because no `cwd` was set, the spawn inherited `process.cwd()` — the project being scanned — and on Windows `cmd.exe`/`CreateProcess` resolve a bare command name against the **current directory before `PATH`**. A cloned repo that shipped `git.bat` / `node.bat` / `python3.bat` / `npx.cmd` (any PATHEXT) in its root therefore got that file executed instead of the real tool, **on the zero-click session-start hook, with no `checks.json` and no `agent-doctor trust`** — a separate, lower-precondition path than the `checks.json` vector closed in 0.6.0. All probe spawns are now pinned to a non-repo working directory (the user's home), so a repo-planted binary in the scan target can no longer shadow a probe. Regression test plants a shadow and asserts the real binary still wins. **Behavior change:** `exec`/`mcp` probes now run with `cwd` = home rather than the scanned project directory; a (trusted) check that needs project context should use an absolute path.
+
 ## [0.6.0] — 2026-07-15
 
 ### Security

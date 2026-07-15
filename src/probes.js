@@ -11,6 +11,14 @@ import os from 'node:os';
 const home = os.homedir();
 const require = createRequire(import.meta.url);
 
+// Spawn every probe from a NON-repo directory. On Windows, cmd.exe (shell:true)
+// and CreateProcess resolve a BARE command name against the child's current
+// directory BEFORE PATH — so inheriting the scanned repo's cwd lets a cloned repo
+// shadow a probed binary (a planted git.bat / node.bat / npx.cmd runs instead of
+// the real tool) = code execution on session-start, with no checks.json and no
+// trust. home is user-owned, so a cloned repo cannot plant a shadow there.
+const SPAWN_CWD = home;
+
 export function expandPath(p) {
   if (!p) return p;
   return p.replace(/^~(?=$|[\\/])/, home).replace(/\$\{?HOME\}?/g, home);
@@ -22,7 +30,7 @@ const NOT_FOUND = /not recognized|not found|no such file|cannot find|Microsoft S
 // avoids the DEP0190 (args + shell) warning.
 function runShell(command, timeout = 15000) {
   try {
-    const r = spawnSync(command, { encoding: 'utf8', timeout, shell: true, windowsHide: true });
+    const r = spawnSync(command, { encoding: 'utf8', timeout, shell: true, windowsHide: true, cwd: SPAWN_CWD });
     return { out: `${r.stdout || ''}${r.stderr || ''}`, code: r.status };
   } catch { return { out: '', code: null }; }
 }
@@ -30,7 +38,7 @@ function runShell(command, timeout = 15000) {
 // shell:false + args array — for real binaries (python/sqlite3); ENOENT = absent, no quoting issues.
 function runExec(cmd, args = [], timeout = 8000) {
   try {
-    const r = spawnSync(cmd, args, { encoding: 'utf8', timeout, windowsHide: true });
+    const r = spawnSync(cmd, args, { encoding: 'utf8', timeout, windowsHide: true, cwd: SPAWN_CWD });
     if (r.error && r.error.code === 'ENOENT') return { ran: false, out: '' };
     return { ran: true, out: `${r.stdout || ''}${r.stderr || ''}` };
   } catch { return { ran: false, out: '' }; }
@@ -281,7 +289,7 @@ function probeLocalMcp(cfg) {
       .map(quoteArg).join(' ');
     try {
       child = spawn(cmdLine, {
-        stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true, shell: true, env,
+        stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true, shell: true, env, cwd: SPAWN_CWD,
       });
     } catch (e) {
       finish('DOWN', 0, `spawn failed: ${(e && e.message) || e}`);
