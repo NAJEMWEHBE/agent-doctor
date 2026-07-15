@@ -4,6 +4,21 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-07-15
+
+### Security
+- **`cwd/checks.json` is now trust-gated (direnv-style).** Previously `loadChecks()` merged a `checks.json` from the current directory over the built-ins and ran every check — and the session-start hook does this in the project's cwd, so a cloned repo could ship a root `checks.json` whose `exec` probe executed on repo-open (or an `http` probe that exfiltrated an API key via `${ENV:VAR}` in its URL). A `cwd/checks.json` is now **inert until you run `agent-doctor trust`** in that directory, which pins its SHA-256 in `~/.agent-doctor/trust.json`; later runs (including the session-start hook) load it only while the path is trusted and the file still matches the pinned hash — editing it re-locks. The home override (`~/.agent-doctor/checks.json`) and built-ins are unaffected. **Behavior change:** an existing project `checks.json` will be ignored until you `agent-doctor trust` it once.
+
+### Added
+- **`agent-doctor trust` / `trust --list` / `untrust`** — manage which project `checks.json` files are allowed to run. `trust` prints how many of the checks run a command before pinning.
+- **Cline CLI** check (`agent-cli:cline`), judge-by-output `--version` exec probe. (#14)
+- **Ollama local models** check (`runtime:ollama-models`, new `ollamaTags` probe) — pass when models are pulled, warn when Ollama is up with none, skip when down. (#15)
+- `AGENT_DOCTOR_HOME` environment variable relocates state (cache + trust store).
+
+### Fixed
+- `sqliteScalar` now passes the DB path + query as `sys.argv` instead of substituting them into the generated Python source, so a path or query containing quotes/backslashes no longer breaks or misreads the probe.
+- `ollamaTags` parses the response body in its own try/catch, so a reachable endpoint returning non-JSON is no longer misreported as "Ollama not running".
+
 ### Changed
 - **Real MCP handshake probe** (`mcp` probe) — replaces reachability-only checking with the actual JSON-RPC handshake: `initialize` (protocol `2025-06-18`) → `notifications/initialized` → `tools/list`. Remote servers (`url`) speak Streamable-HTTP JSON-RPC (parses a JSON body or an SSE `data:` frame, carries the negotiated `Mcp-Session-Id`, honors `${ENV:VAR}` in headers); local servers (`command`) are spawned and probed over newline-delimited stdio JSON-RPC. Per-server verdicts: **GOOD** (handshake ok + ≥1 tool), **WARN** ("speaks MCP but 0 tools" — the MCP twin of the memory silent-failure), **AUTH** (401/403 Bearer challenge), **DOWN** (unreachable / not MCP / crashed on init). Roll-up: pass = all GOOD, warn = any WARN or mixed up/down, fail = all DOWN/AUTH. Keeps the 3s timeout and probes servers concurrently. Local spawns now quote command/args so launcher paths with spaces work (also clears the DEP0190 warning).
 
