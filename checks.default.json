@@ -146,6 +146,14 @@
       "fix": "Install: npm install -g @sourcegraph/cody"
     },
     {
+      "id": "runtime:ollama-models",
+      "label": "Ollama local models",
+      "dimension": "runtime",
+      "tier": "deep",
+      "probe": { "type": "ollamaTags", "url": "http://127.0.0.1:11434/api/tags", "skipIfDown": true },
+      "fix": "Start Ollama, then pull a model (for example: ollama pull llama3.2)"
+    },
+    {
       "id": "memory:claude-mem-writing",
       "label": "claude-mem (writing?)",
       "dimension": "memory",

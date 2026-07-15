@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import http from 'node:http';
 import { loadChecks, runChecks, scoreResults } from '../src/engine.js';
-import { execProbe, fileJsonProbe, interpolateEnv, httpProbe } from '../src/probes.js';
+import { execProbe, fileJsonProbe, interpolateEnv, httpProbe, ollamaTagsProbe } from '../src/probes.js';
 
 test('loadChecks returns built-in checks', () => {
   const checks = loadChecks();
@@ -92,4 +93,47 @@ test('v0.5: an absent agent-cli binary yields skip (not fail)', () => {
   const cursor = checks.find((c) => c.id === 'agent-cli:cursor');
   const r = execProbe({ ...cursor.probe, cmd: 'definitely-not-a-real-binary-xyz' });
   assert.equal(r.status, 'skip');
+});
+
+test('ollamaTagsProbe passes when Ollama reports pulled models', async () => {
+  const server = http.createServer((req, res) => {
+    assert.equal(req.url, '/api/tags');
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({ models: [{ name: 'llama3.2:latest' }] }));
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const { port } = server.address();
+    const r = await ollamaTagsProbe({ url: `http://127.0.0.1:${port}/api/tags` });
+    assert.equal(r.status, 'pass');
+    assert.match(r.detail, /llama3\.2/);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('ollamaTagsProbe warns when Ollama is up with no models', async () => {
+  const server = http.createServer((_req, res) => {
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({ models: [] }));
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const { port } = server.address();
+    const r = await ollamaTagsProbe({ url: `http://127.0.0.1:${port}/api/tags` });
+    assert.equal(r.status, 'warn');
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('built-in Ollama check is deep, optional when down, and has a fix hint', () => {
+  const checks = loadChecks();
+  const c = checks.find((check) => check.id === 'runtime:ollama-models');
+  assert.ok(c, 'missing Ollama models check');
+  assert.equal(c.dimension, 'runtime');
+  assert.equal(c.tier, 'deep');
+  assert.equal(c.probe.type, 'ollamaTags');
+  assert.equal(c.probe.skipIfDown, true);
+  assert.match(c.fix, /ollama pull/);
 });
