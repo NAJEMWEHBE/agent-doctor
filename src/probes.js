@@ -457,8 +457,9 @@ function sqliteScalar(db, query) {
       if (!Number.isNaN(n)) return n;
     }
   }
-  // 3) sqlite3 CLI
-  const r = runExec('sqlite3', [db, query], 8000);
+  // 3) sqlite3 CLI (-readonly matches the read-only intent of the node:sqlite and
+  // python `?mode=ro` paths above — a probed DB is inspected, never written).
+  const r = runExec('sqlite3', ['-readonly', db, query], 8000);
   if (r.ran) {
     const n = parseInt((r.out.match(/-?\d+/) || [])[0], 10);
     if (!Number.isNaN(n)) return n;

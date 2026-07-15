@@ -59,12 +59,13 @@ function trustCmd(argv) {
     process.stderr.write(`No checks.json in ${dir} to trust. (Run \`agent-doctor init\` to create one.)\n`);
     return 1;
   }
-  const { total, runCmd } = summarizeChecks(target);
+  const { total, runCmd, network, reads, exfil } = summarizeChecks(target);
   const res = trustDir(dir);
   if (!res.ok) { process.stderr.write(`Could not record trust for ${target}.\n`); return 1; }
   process.stdout.write(
     `Trusted ${target}\n`
-    + `  ${total} check(s), ${runCmd} that run a command (exec/mcp)\n`
+    + `  ${total} check(s): ${runCmd} run a command, ${network} make network calls, ${reads} read local files\n`
+    + (exfil ? `  ⚠ ${exfil} pass an env secret (\${ENV:…}) to their target\n` : '')
     + `  sha256 ${res.hash.slice(0, 16)}…  (edits re-lock it)\n`
     + `  These now run on \`agent-doctor\` and on session-start.\n`,
   );

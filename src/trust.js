@@ -104,15 +104,26 @@ export function listTrusted() {
   });
 }
 
-// Shape summary for the `trust` command: how many checks, how many spawn a process.
+// Capability summary for the `trust` consent prompt. Trusting a checks.json
+// authorizes EVERY probe in it, and each probe type is a capability: exec/mcp spawn
+// a process; http/port/ollamaTags make network requests; fileJson/memwrite read
+// local files. Separately, a ${ENV:VAR} anywhere in a probe hands that secret to
+// the probe's target — e.g. an http url/header `${ENV:OPENAI_API_KEY}` exfiltrates
+// the key on every run. Counting only exec/mcp (as this did) understated the risk a
+// user is authorizing; disclose the network, file-read, and secret-exfil surfaces too.
 export function summarizeChecks(path) {
   let checks = [];
   try {
     const o = JSON.parse(readFileSync(path, 'utf8'));
     if (o && Array.isArray(o.checks)) checks = o.checks;
   } catch { /* leave empty */ }
-  const runCmd = checks.filter((c) => c?.probe?.type === 'exec' || c?.probe?.type === 'mcp').length;
-  return { total: checks.length, runCmd };
+  const type = (c) => c?.probe?.type;
+  const runCmd = checks.filter((c) => type(c) === 'exec' || type(c) === 'mcp').length;
+  const network = checks.filter((c) => ['http', 'port', 'ollamaTags'].includes(type(c))).length;
+  const reads = checks.filter((c) => ['fileJson', 'memwrite'].includes(type(c))).length;
+  // ${ENV:VAR} in any probe field = a secret this check hands to its target.
+  const exfil = checks.filter((c) => /\$\{ENV:/.test(JSON.stringify(c?.probe ?? ''))).length;
+  return { total: checks.length, runCmd, network, reads, exfil };
 }
 
 export { dataDir, normDir, sha256File };

