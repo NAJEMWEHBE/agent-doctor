@@ -6,7 +6,7 @@ import os from 'node:os';
 import {
   execProbe, httpProbe, portProbe, fileJsonProbe, memwriteProbe, mcpProbe, ollamaTagsProbe, expandPath,
 } from './probes.js';
-import { isTrusted } from './trust.js';
+import { isTrusted, trustedChecks } from './trust.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Resolved lazily so AGENT_DOCTOR_HOME is honored at call time (state relocation + tests).
@@ -34,12 +34,12 @@ function loadJson(path) {
 export function loadChecks() {
   const builtin = loadJson(join(__dirname, '..', 'checks.default.json')) || { checks: [] };
   const byId = new Map(builtin.checks.map((c) => [c.id, c]));
-  const cwdChecks = join(process.cwd(), 'checks.json');
-  const sources = [];
-  if (isTrusted(process.cwd(), cwdChecks)) sources.push(cwdChecks); // gated; home overrides it
-  sources.push(join(dataDir(), 'checks.json'));
-  for (const p of sources) {
-    const user = loadJson(p);
+  // cwd/checks.json is UNTRUSTED: verify the pin and parse from a SINGLE read so the
+  // bytes we hash-checked are exactly the bytes we run (no verify-then-reparse gap).
+  const cwdTrusted = trustedChecks(process.cwd()); // null unless trusted AND hash matches
+  // home override (~/.agent-doctor/checks.json) is the user's own trusted file.
+  const homeChecks = loadJson(join(dataDir(), 'checks.json'));
+  for (const user of [cwdTrusted, homeChecks]) { // cwd first; home overrides it (order unchanged)
     if (user && Array.isArray(user.checks)) {
       for (const c of user.checks) byId.set(c.id, c);
     }

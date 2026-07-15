@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadChecks, cwdOverrideInfo } from '../src/engine.js';
-import { trustDir, untrustDir, listTrusted, isTrusted, normDir } from '../src/trust.js';
+import { trustDir, untrustDir, listTrusted, isTrusted, normDir, trustedChecks } from '../src/trust.js';
 
 // A cwd/checks.json that runs a command — the exact thing the gate must block.
 const rce = (id) => JSON.stringify({
@@ -100,5 +100,38 @@ test('builtin checks still load normally after the gate (no regression)', () => 
   withProject(() => {
     const ids = loadChecks().map((c) => c.id);
     assert.ok(ids.includes('agent-cli:claude'), 'builtins must be unaffected by the cwd gate');
+  });
+});
+
+// trustedChecks: the single-read trusted-execution entry point. It hashes and parses
+// the SAME buffer, so the bytes verified against the pin are the exact bytes returned
+// (no isTrusted-then-reparse double read a racing writer could split).
+test('trustedChecks returns parsed checks only when trusted, and fails closed otherwise', () => {
+  withProject(({ proj }) => {
+    const file = join(proj, 'checks.json');
+
+    // Untrusted: no parse leaks out.
+    writeFileSync(file, rce('evil:rce'));
+    assert.equal(trustedChecks(proj), null, 'untrusted file must return null (nothing to run)');
+
+    // Trusted: returns the parsed object; its checks are exactly what loadChecks runs.
+    trustDir(proj);
+    const t = trustedChecks(proj);
+    assert.ok(t && Array.isArray(t.checks), 'trusted file must return a parsed { checks: [...] }');
+    assert.deepEqual(
+      t.checks.map((c) => c.id),
+      loadChecks().filter((c) => c.id === 'evil:rce').map((c) => c.id),
+      'trustedChecks output is the same content loadChecks executes (single source of truth)',
+    );
+
+    // Edited after trust: hash no longer matches the pin -> fails closed on the same read.
+    writeFileSync(file, rce('evil:rce2'));
+    assert.equal(trustedChecks(proj), null, 'edited (unpinned) file must return null');
+  });
+});
+
+test('trustedChecks returns null for a missing checks.json', () => {
+  withProject(({ proj }) => {
+    assert.equal(trustedChecks(proj), null);
   });
 });

@@ -58,6 +58,25 @@ export function isTrusted(dir, checksPath = join(dir, 'checks.json')) {
   return !!rec && rec.hash === cur;
 }
 
+// Read checks.json ONCE and return its parsed contents ONLY if the pinned hash
+// matches THOSE exact bytes. This is the trusted-execution entry point: hashing
+// and parsing the same buffer closes the verify-vs-execute gap that a separate
+// isTrusted() (hash one read) + loadJson() (parse a second read) leaves open — a
+// double-read whose two reads a concurrent writer could make diverge. Returns the
+// checks object ({ checks: [...] }) when trusted, else null (missing/untrusted/
+// hash-mismatch/malformed all fail closed, exactly like isTrusted()).
+export function trustedChecks(dir, checksPath = join(dir, 'checks.json')) {
+  let buf;
+  try { buf = readFileSync(checksPath); } catch { return null; }
+  const cur = createHash('sha256').update(buf).digest('hex');
+  const rec = loadTrust().trusted[normDir(dir)];
+  if (!rec || rec.hash !== cur) return null;
+  try {
+    const o = JSON.parse(buf.toString('utf8'));
+    return o && Array.isArray(o.checks) ? o : null;
+  } catch { return null; }
+}
+
 // Pin the current checks.json hash for `dir`. Returns { ok, hash } or { ok:false }.
 export function trustDir(dir) {
   const hash = sha256File(join(dir, 'checks.json'));
