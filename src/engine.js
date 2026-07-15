@@ -6,10 +6,11 @@ import os from 'node:os';
 import {
   execProbe, httpProbe, portProbe, fileJsonProbe, memwriteProbe, mcpProbe, ollamaTagsProbe, expandPath,
 } from './probes.js';
+import { isTrusted } from './trust.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = join(os.homedir(), '.agent-doctor');
-const CACHE = join(DATA_DIR, 'cache.json');
+// Resolved lazily so AGENT_DOCTOR_HOME is honored at call time (state relocation + tests).
+function dataDir() { return process.env.AGENT_DOCTOR_HOME || join(os.homedir(), '.agent-doctor'); }
 
 const PROBES = {
   exec: execProbe,
@@ -25,11 +26,19 @@ function loadJson(path) {
   try { return JSON.parse(readFileSync(path, 'utf8')); } catch { return null; }
 }
 
-// Built-in checks + user overrides (cwd/.agent-doctor or ~/.agent-doctor). Merge by id.
+// Built-in checks + user overrides, merged by id. The home override
+// (~/.agent-doctor/checks.json) is the user's own file and always applies. A
+// cwd/checks.json is UNTRUSTED (a cloned repo can ship one, and the session-start
+// hook would run it), so it applies only when the project is trusted and its hash
+// still matches — see trust.js / `agent-doctor trust`.
 export function loadChecks() {
   const builtin = loadJson(join(__dirname, '..', 'checks.default.json')) || { checks: [] };
   const byId = new Map(builtin.checks.map((c) => [c.id, c]));
-  for (const p of [join(process.cwd(), 'checks.json'), join(DATA_DIR, 'checks.json')]) {
+  const cwdChecks = join(process.cwd(), 'checks.json');
+  const sources = [];
+  if (isTrusted(process.cwd(), cwdChecks)) sources.push(cwdChecks); // gated; home overrides it
+  sources.push(join(dataDir(), 'checks.json'));
+  for (const p of sources) {
     const user = loadJson(p);
     if (user && Array.isArray(user.checks)) {
       for (const c of user.checks) byId.set(c.id, c);
@@ -38,9 +47,18 @@ export function loadChecks() {
   return [...byId.values()];
 }
 
-function readCache() { return loadJson(CACHE) || {}; }
+// Status of a cwd/checks.json for the CLI's one-line "untrusted, ignored" notice.
+export function cwdOverrideInfo() {
+  const path = join(process.cwd(), 'checks.json');
+  const user = loadJson(path);
+  if (!user) return { path, present: false, trusted: false, count: 0 };
+  const count = Array.isArray(user.checks) ? user.checks.length : 0;
+  return { path, present: true, trusted: isTrusted(process.cwd(), path), count };
+}
+
+function readCache() { return loadJson(join(dataDir(), 'cache.json')) || {}; }
 function writeCache(c) {
-  try { mkdirSync(DATA_DIR, { recursive: true }); writeFileSync(CACHE, JSON.stringify(c, null, 2)); } catch { /* non-fatal */ }
+  try { mkdirSync(dataDir(), { recursive: true }); writeFileSync(join(dataDir(), 'cache.json'), JSON.stringify(c, null, 2)); } catch { /* non-fatal */ }
 }
 
 async function runProbe(check) {
@@ -109,4 +127,4 @@ export function byDimension(results) {
   return groups;
 }
 
-export { expandPath, DATA_DIR };
+export { expandPath, dataDir };

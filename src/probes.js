@@ -106,7 +106,9 @@ export async function ollamaTagsProbe(p) {
   try {
     const res = await fetch(url, { signal: ctrl.signal });
     if (!res.ok) return { status: 'fail', detail: `HTTP ${res.status}` };
-    const data = await res.json();
+    let data;
+    try { data = await res.json(); }
+    catch { return { status: 'fail', detail: `unexpected non-JSON response from ${url}` }; }
     const models = Array.isArray(data?.models) ? data.models : [];
     if (models.length === 0) {
       return { status: 'warn', detail: 'Ollama is running but no models are pulled' };
@@ -437,10 +439,11 @@ function sqliteScalar(db, query) {
   } catch { /* fall through */ }
   // 2) python3 / python
   for (const py of ['python3', 'python', 'py']) {
-    const code = `import sqlite3,sys;c=sqlite3.connect('file:%DB%?mode=ro',uri=True);print(c.execute("%Q%").fetchone()[0])`
-      .replace('%DB%', db.replace(/\\/g, '/'))
-      .replace('%Q%', query.replace(/"/g, '\\"'));
-    const r = runExec(py, ['-c', code], 8000);
+    // Pass db + query as argv (sys.argv) instead of substituting them into the
+    // program source, so a path or query containing quotes/backslashes can neither
+    // break the generated Python nor inject code. (Carried from #12.)
+    const code = "import sqlite3,sys;c=sqlite3.connect('file:'+sys.argv[1]+'?mode=ro',uri=True);print(c.execute(sys.argv[2]).fetchone()[0])";
+    const r = runExec(py, ['-c', code, db.replace(/\\/g, '/'), query], 8000);
     if (r.ran) {
       const n = parseInt((r.out.match(/-?\d+/) || [])[0], 10);
       if (!Number.isNaN(n)) return n;
