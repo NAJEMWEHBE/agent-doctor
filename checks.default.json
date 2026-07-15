@@ -122,6 +122,14 @@
       "fix": "Install: npm i -g @continuedev/cli"
     },
     {
+      "id": "agent-cli:cline",
+      "label": "Cline CLI",
+      "dimension": "agents",
+      "tier": "deep",
+      "probe": { "type": "exec", "cmd": "cline", "args": ["--version"], "expectOutput": "\\d+\\.\\d+", "missing": "skip" },
+      "fix": "Install: npm i -g cline"
+    },
+    {
       "id": "agent-cli:auggie",
       "label": "Augment Auggie",
       "dimension": "agents",

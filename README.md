@@ -94,6 +94,7 @@ Then just type `/doctor` anytime, or let the session-start hook flag problems au
 | Block Goose | CLI alive |
 | Charm Crush | CLI alive |
 | Continue CLI | CLI alive |
+| Cline CLI | CLI alive |
 | Augment Auggie | CLI alive |
 | Sourcegraph Cody | CLI alive |
 | MCP servers | reachability of configured servers (remote url + local launcher command) |
