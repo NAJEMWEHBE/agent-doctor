@@ -104,15 +104,33 @@ export function listTrusted() {
   });
 }
 
-// Shape summary for the `trust` command: how many checks, how many spawn a process.
+// Shape summary for the `trust` command's consent line — an honest capability count so
+// the user sees what they are about to allow before pinning the hash.
 export function summarizeChecks(path) {
   let checks = [];
   try {
     const o = JSON.parse(readFileSync(path, 'utf8'));
     if (o && Array.isArray(o.checks)) checks = o.checks;
   } catch { /* leave empty */ }
-  const runCmd = checks.filter((c) => c?.probe?.type === 'exec' || c?.probe?.type === 'mcp').length;
-  return { total: checks.length, runCmd };
+  // "Runs a command": spawns a process directly (exec, mcp) OR can reach a shell/CLI that
+  // runs one — memwrite falls back to the sqlite3 CLI, whose .shell/.system meta-commands
+  // execute the OS regardless of a read-only DB, so a hostile query is command-capable.
+  const RUN_CMD = new Set(['exec', 'mcp', 'memwrite']);
+  // "Can send a secret": httpProbe is the only check type that interpolates ${ENV:VAR} into
+  // a fetch (url + header values), so a check can exfiltrate an environment secret to a
+  // check-chosen URL. (ollamaTags/port/fileJson do not interpolate env or send a value.)
+  const runsCommand = (c) => RUN_CMD.has(c?.probe?.type);
+  const exfilsSecret = (c) => {
+    const p = c?.probe;
+    if (p?.type !== 'http') return false;
+    const blob = JSON.stringify(p.url ?? '') + JSON.stringify(p.headers ?? '');
+    return blob.includes('${ENV:');
+  };
+  return {
+    total: checks.length,
+    runCmd: checks.filter(runsCommand).length,
+    exfil: checks.filter(exfilsSecret).length,
+  };
 }
 
 export { dataDir, normDir, sha256File };
