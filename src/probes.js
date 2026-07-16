@@ -5,6 +5,7 @@
 import { spawnSync, spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { join } from 'node:path';
 import net from 'node:net';
 import os from 'node:os';
 
@@ -396,6 +397,51 @@ export async function mcpProbe(p) {
   return {
     status: 'warn',
     detail: `${good.length}/${names.length} GOOD; ${problems}`,
+  };
+}
+
+// mcpDetect: {} — DISCOVERY ONLY. Reports MCP servers configured in project-scoped,
+// REPO-PLACEABLE files (./.mcp.json, ./.claude/settings.json[.local]) relative to cwd.
+//
+// Deliberately SEPARATE from mcpProbe and it NEVER handshakes what it finds. mcpProbe
+// spawns cfg.command / fetches cfg.url and reads only the user-owned ~/.claude.json, so
+// everything it connects to is trusted by location. A cloned repo can plant .mcp.json /
+// .claude/settings.json, and connecting to a server declared there would run an
+// attacker-chosen command or fetch an attacker URL (with ${ENV:} headers = secret exfil).
+// So this probe only READS + COUNTS: no child_process, no network, no route into
+// probeLocalMcp/probeRemoteMcp. Awareness without the exec/exfil surface.
+export function mcpDetectProbe() {
+  const cwd = process.cwd();
+  const sources = ['.mcp.json', join('.claude', 'settings.json'), join('.claude', 'settings.local.json')];
+  const found = [];   // { name, transport }
+  const badFiles = [];
+  let scanned = 0;
+  for (const rel of sources) {
+    const path = join(cwd, rel);
+    if (!existsSync(path)) continue;
+    scanned += 1;
+    let data;
+    try { data = JSON.parse(readFileSync(path, 'utf8')); }
+    catch { badFiles.push(rel); continue; }
+    const servers = data && typeof data === 'object' && data.mcpServers && typeof data.mcpServers === 'object'
+      ? data.mcpServers : null;
+    if (!servers) continue;
+    for (const [name, cfg] of Object.entries(servers)) {
+      const transport = cfg && typeof cfg === 'object'
+        ? (cfg.command ? 'local' : cfg.url ? 'remote' : 'unknown')
+        : 'unknown';
+      found.push({ name, transport });
+    }
+  }
+  const badNote = badFiles.length ? ` (${badFiles.length} unreadable: ${badFiles.join(', ')})` : '';
+  if (scanned === 0) return { status: 'skip', detail: 'no project MCP config (.mcp.json / .claude/settings.json)' };
+  if (found.length === 0) {
+    return { status: badFiles.length ? 'warn' : 'skip', detail: `no project MCP servers configured${badNote}` };
+  }
+  const list = found.map((s) => `${s.name} (${s.transport})`).join(', ');
+  return {
+    status: 'pass',
+    detail: `${found.length} project MCP server(s) detected, NOT verified — untrusted project config, not handshaked: ${list}${badNote}`,
   };
 }
 
