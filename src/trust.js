@@ -104,33 +104,30 @@ export function listTrusted() {
   });
 }
 
-// Shape summary for the `trust` command's consent line — an honest capability count so
-// the user sees what they are about to allow before pinning the hash.
+// Capability summary for the `trust` consent prompt. Trusting a checks.json authorizes
+// EVERY probe in it, and each probe type is a capability: exec/mcp run a configured command,
+// and memwrite shells out to python/sqlite3 whenever the in-process node:sqlite backend is
+// absent — so it spawns a process too. (Its queries can no longer reach the sqlite3 CLI's
+// .shell/.system meta-commands — sqliteScalar refuses dot-command queries — but the spawn
+// itself remains.) http/port/ollamaTags make network requests; fileJson/memwrite read local
+// files. Separately, a ${ENV:VAR} anywhere in a probe hands that secret to the probe's
+// target — an http url/header `${ENV:OPENAI_API_KEY}` exfiltrates the key on every run,
+// which counting only exec/mcp reported as "0 that run a command".
+// The buckets are capabilities, not a partition: a check can appear in more than one
+// (memwrite both runs a command and reads a file; mcp both spawns and talks to the network).
 export function summarizeChecks(path) {
   let checks = [];
   try {
     const o = JSON.parse(readFileSync(path, 'utf8'));
     if (o && Array.isArray(o.checks)) checks = o.checks;
   } catch { /* leave empty */ }
-  // "Runs a command": spawns a process — exec/mcp run a configured command, and memwrite
-  // shells out to python/sqlite3 whenever the in-process node:sqlite backend is absent.
-  // (memwrite's queries can no longer reach the sqlite3 CLI's .shell/.system meta-commands
-  // — sqliteScalar refuses dot-command queries — but it still spawns a process.)
-  const RUN_CMD = new Set(['exec', 'mcp', 'memwrite']);
-  // "Can send a secret": httpProbe is the only check type that interpolates ${ENV:VAR} into
-  // a fetch (url + header values), so a check can exfiltrate an environment secret to a
-  // check-chosen URL. (ollamaTags/port/fileJson do not interpolate env or send a value.)
-  const runsCommand = (c) => RUN_CMD.has(c?.probe?.type);
-  const exfilsSecret = (c) => {
-    const p = c?.probe;
-    if (p?.type !== 'http') return false;
-    const blob = JSON.stringify(p.url ?? '') + JSON.stringify(p.headers ?? '');
-    return blob.includes('${ENV:');
-  };
+  const isType = (...types) => (c) => types.includes(c?.probe?.type);
   return {
     total: checks.length,
-    runCmd: checks.filter(runsCommand).length,
-    exfil: checks.filter(exfilsSecret).length,
+    runCmd: checks.filter(isType('exec', 'mcp', 'memwrite')).length,
+    network: checks.filter(isType('http', 'port', 'ollamaTags', 'mcp')).length,
+    reads: checks.filter(isType('fileJson', 'memwrite')).length,
+    exfil: checks.filter((c) => /\$\{ENV:/.test(JSON.stringify(c?.probe ?? ''))).length,
   };
 }
 
