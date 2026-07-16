@@ -435,7 +435,17 @@ export function fileJsonProbe(p) {
 }
 
 // Read a single integer from a SQLite DB via whatever backend is available.
+// memwrite is an OBSERVATION: every backend opens the DB read-only, and the query
+// must be SQL — never a CLI meta-command.
 function sqliteScalar(db, query) {
+  // A leading '.' makes the query a sqlite3 CLI meta-command (.shell / .system /
+  // .import / .output), which runs an OS command or writes a file. `-readonly` does
+  // NOT restrain those — it only opens the DATABASE read-only ("Write will be
+  // prohibited"), and sqlite3 treats each trailing argument as "either an SQL
+  // statement or a dot-command". The two read-only backends below reject such a
+  // query as invalid SQL, so it would fall through to the CLI by construction.
+  // Refuse it outright: no legitimate scalar query starts with '.'.
+  if (/^\s*\./.test(String(query ?? ''))) return null;
   // 1) node:sqlite (node 22.5+)
   try {
     // eslint-disable-next-line

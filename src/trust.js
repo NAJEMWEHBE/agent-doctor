@@ -112,9 +112,10 @@ export function summarizeChecks(path) {
     const o = JSON.parse(readFileSync(path, 'utf8'));
     if (o && Array.isArray(o.checks)) checks = o.checks;
   } catch { /* leave empty */ }
-  // "Runs a command": spawns a process directly (exec, mcp) OR can reach a shell/CLI that
-  // runs one — memwrite falls back to the sqlite3 CLI, whose .shell/.system meta-commands
-  // execute the OS regardless of a read-only DB, so a hostile query is command-capable.
+  // "Runs a command": spawns a process — exec/mcp run a configured command, and memwrite
+  // shells out to python/sqlite3 whenever the in-process node:sqlite backend is absent.
+  // (memwrite's queries can no longer reach the sqlite3 CLI's .shell/.system meta-commands
+  // — sqliteScalar refuses dot-command queries — but it still spawns a process.)
   const RUN_CMD = new Set(['exec', 'mcp', 'memwrite']);
   // "Can send a secret": httpProbe is the only check type that interpolates ${ENV:VAR} into
   // a fetch (url + header values), so a check can exfiltrate an environment secret to a
