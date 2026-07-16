@@ -32,7 +32,7 @@
       "type": "object",
       "required": ["type"],
       "properties": {
-        "type": { "enum": ["exec", "http", "port", "fileJson", "memwrite", "mcp", "ollamaTags"] },
+        "type": { "enum": ["exec", "http", "port", "fileJson", "memwrite", "mcp", "mcpDetect", "ollamaTags"] },
         "cmd": { "type": "string", "description": "exec: command to run." },
         "args": { "type": "array", "items": { "type": "string" }, "description": "exec: arguments." },
         "expectOutput": { "type": "string", "description": "exec: regex the output must match to PASS (judged by output, not exit code)." },

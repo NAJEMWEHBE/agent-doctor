@@ -221,7 +221,7 @@
       "dimension": "mcp",
       "tier": "fast",
       "probe": { "type": "mcpDetect" },
-      "fix": "Servers declared in project-scoped config (.mcp.json / .claude/settings.json) are listed for awareness only — agent-doctor does NOT handshake them. A cloned repo can plant these files, and connecting would run the server's command or fetch its URL (with any ${ENV:} headers = secret exfil). Only the user-owned ~/.claude.json is verified live (mcp:servers). Approve project servers in your MCP client from a directory you trust."
+      "fix": "Servers declared in a project-scoped .mcp.json are listed for awareness only — agent-doctor does NOT handshake them. A cloned repo can plant this file, and connecting would run the server's command or fetch its URL (with any ${ENV:} headers = secret exfil). Only the user-owned ~/.claude.json is verified live (mcp:servers). Approve project servers in your MCP client from a directory you trust."
     },
     {
       "id": "keys:anthropic",
