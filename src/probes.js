@@ -400,19 +400,25 @@ export async function mcpProbe(p) {
   };
 }
 
-// mcpDetect: {} — DISCOVERY ONLY. Reports MCP servers configured in project-scoped,
-// REPO-PLACEABLE files (./.mcp.json, ./.claude/settings.json[.local]) relative to cwd.
+// mcpDetect: {} — DISCOVERY ONLY. Reports MCP servers declared in the project-scoped,
+// REPO-PLACEABLE file ./.mcp.json (relative to cwd).
 //
 // Deliberately SEPARATE from mcpProbe and it NEVER handshakes what it finds. mcpProbe
 // spawns cfg.command / fetches cfg.url and reads only the user-owned ~/.claude.json, so
-// everything it connects to is trusted by location. A cloned repo can plant .mcp.json /
-// .claude/settings.json, and connecting to a server declared there would run an
-// attacker-chosen command or fetch an attacker URL (with ${ENV:} headers = secret exfil).
-// So this probe only READS + COUNTS: no child_process, no network, no route into
+// everything it connects to is trusted by location. A cloned repo can plant .mcp.json,
+// and connecting to a server declared there would run an attacker-chosen command or
+// fetch an attacker URL (with ${ENV:} headers = secret exfil). So this probe only
+// READS + COUNTS: no child_process, no network, no route into
 // probeLocalMcp/probeRemoteMcp. Awareness without the exec/exfil surface.
+//
+// Only .mcp.json is scanned: it is where Claude Code stores project MCP *definitions*.
+// A project .claude/settings.json holds only enable/disable *references*
+// (enabledMcpjsonServers / disabledMcpjsonServers), never server definitions, so there
+// is nothing there to detect. `sources` stays a list so a future real definition
+// location can be added.
 export function mcpDetectProbe() {
   const cwd = process.cwd();
-  const sources = ['.mcp.json', join('.claude', 'settings.json'), join('.claude', 'settings.local.json')];
+  const sources = ['.mcp.json'];
   const found = [];   // { name, transport }
   const badFiles = [];
   let scanned = 0;
@@ -434,7 +440,7 @@ export function mcpDetectProbe() {
     }
   }
   const badNote = badFiles.length ? ` (${badFiles.length} unreadable: ${badFiles.join(', ')})` : '';
-  if (scanned === 0) return { status: 'skip', detail: 'no project MCP config (.mcp.json / .claude/settings.json)' };
+  if (scanned === 0) return { status: 'skip', detail: 'no project MCP config (.mcp.json)' };
   if (found.length === 0) {
     return { status: badFiles.length ? 'warn' : 'skip', detail: `no project MCP servers configured${badNote}` };
   }

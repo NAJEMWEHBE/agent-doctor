@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import os from 'node:os';
 import { join } from 'node:path';
 import { loadChecks, runChecks, scoreResults } from '../src/engine.js';
@@ -174,16 +174,6 @@ test('mcpDetectProbe reports servers from project .mcp.json and classifies trans
     assert.match(r.detail, /NOT verified/);
     assert.match(r.detail, /local1 \(local\)/);
     assert.match(r.detail, /remote1 \(remote\)/);
-  });
-});
-
-test('mcpDetectProbe also reads .claude/settings.json mcpServers', () => {
-  inTempCwd(() => {
-    mkdirSync('.claude');
-    writeFileSync(join('.claude', 'settings.json'), JSON.stringify({ mcpServers: { fromsettings: { url: 'https://x/y' } } }));
-    const r = mcpDetectProbe();
-    assert.equal(r.status, 'pass');
-    assert.match(r.detail, /fromsettings \(remote\)/);
   });
 });
 

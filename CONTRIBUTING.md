@@ -17,7 +17,7 @@ Checks are data. Add one to `checks.default.json` (built-in) or ship it in your 
 }
 ```
 
-**Probe types:** `exec` (judge by output, tolerates weird exit codes) · `http` (supports `${ENV:VAR}`) · `port` · `fileJson` · `memwrite` (silent-failure detector) · `mcp` (server reachability).
+**Probe types:** `exec` (judge by output, tolerates weird exit codes) · `http` (supports `${ENV:VAR}`) · `port` · `fileJson` · `memwrite` (silent-failure detector) · `mcp` (server reachability — handshakes servers in the user-owned `~/.claude.json`) · `mcpDetect` (lists servers declared in repo-placeable project config `.mcp.json` **without** handshaking them).
 
 **Principles:**
 - **Functional, not existence** — probe behavior, never just "file exists."
