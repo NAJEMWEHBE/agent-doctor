@@ -28,3 +28,21 @@ jobs:
         run: |
           node src/cli.js --help
           node src/cli.js --version
+
+  # Single stable status check to gate branch protection on.
+  # The `test` matrix produces 9 separately-named checks whose names change
+  # whenever the OS/node matrix changes; requiring those directly is brittle.
+  # Requiring only "CI required" stays stable and fails whenever any matrix
+  # job fails, is cancelled, or is skipped (e.g. a fork PR still awaiting
+  # workflow approval never reports success -> merge stays blocked).
+  ci-required:
+    name: CI required
+    needs: test
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Fail unless the full test matrix succeeded
+        if: needs.test.result != 'success'
+        run: |
+          echo "test matrix result: ${{ needs.test.result }}"
+          exit 1
