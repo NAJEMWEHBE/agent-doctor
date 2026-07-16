@@ -1,6 +1,6 @@
 {
   "name": "ai-agent-doctor",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "flutter doctor for your AI coding stack — diagnose Claude Code, Codex, Cursor, Gemini CLI & more. Catches the silent failures.",
   "type": "module",
   "bin": {
