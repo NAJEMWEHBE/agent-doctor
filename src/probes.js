@@ -458,7 +458,9 @@ function sqliteScalar(db, query) {
     }
   }
   // 3) sqlite3 CLI
-  const r = runExec('sqlite3', [db, query], 8000);
+  // -readonly: the CLI opens the DB read-write by default; memwrite only ever reads a scalar,
+  // so deny this fallback any write/ATTACH side-effect from a (trusted-but-hostile) query.
+  const r = runExec('sqlite3', ['-readonly', db, query], 8000);
   if (r.ran) {
     const n = parseInt((r.out.match(/-?\d+/) || [])[0], 10);
     if (!Number.isNaN(n)) return n;
