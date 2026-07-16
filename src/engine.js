@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import os from 'node:os';
 import {
-  execProbe, httpProbe, portProbe, fileJsonProbe, memwriteProbe, mcpProbe, ollamaTagsProbe, expandPath,
+  execProbe, httpProbe, portProbe, fileJsonProbe, memwriteProbe, mcpProbe, mcpDetectProbe, ollamaTagsProbe, expandPath,
 } from './probes.js';
 import { isTrusted, trustedChecks } from './trust.js';
 
@@ -19,6 +19,7 @@ const PROBES = {
   fileJson: fileJsonProbe,
   memwrite: memwriteProbe,
   mcp: mcpProbe,
+  mcpDetect: mcpDetectProbe,
   ollamaTags: ollamaTagsProbe,
 };
 

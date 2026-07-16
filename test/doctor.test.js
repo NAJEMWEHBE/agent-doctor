@@ -1,8 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
+import os from 'node:os';
+import { join } from 'node:path';
 import { loadChecks, runChecks, scoreResults } from '../src/engine.js';
-import { execProbe, fileJsonProbe, interpolateEnv, httpProbe, ollamaTagsProbe } from '../src/probes.js';
+import { execProbe, fileJsonProbe, interpolateEnv, httpProbe, ollamaTagsProbe, mcpDetectProbe } from '../src/probes.js';
 
 test('loadChecks returns built-in checks', () => {
   const checks = loadChecks();
@@ -136,4 +139,86 @@ test('built-in Ollama check is deep, optional when down, and has a fix hint', ()
   assert.equal(c.probe.type, 'ollamaTags');
   assert.equal(c.probe.skipIfDown, true);
   assert.match(c.fix, /ollama pull/);
+});
+
+// --- #6: mcp:project-servers — detect project MCP config WITHOUT ever handshaking it ---
+
+// Run body() with process.cwd() pointed at a fresh temp dir; always restore + clean up.
+function inTempCwd(body) {
+  const dir = mkdtempSync(join(os.tmpdir(), 'mcpdetect-'));
+  const prev = process.cwd();
+  try { process.chdir(dir); return body(dir); }
+  finally { process.chdir(prev); rmSync(dir, { recursive: true, force: true }); }
+}
+
+test('mcp:project-servers check is registered, fast tier, detect-only probe', () => {
+  const c = loadChecks().find((x) => x.id === 'mcp:project-servers');
+  assert.ok(c, 'missing mcp:project-servers check');
+  assert.equal(c.dimension, 'mcp');
+  assert.equal(c.tier, 'fast');
+  assert.equal(c.probe.type, 'mcpDetect');
+  assert.ok(c.fix && c.fix.length > 0, 'has a fix hint');
+});
+
+test('mcpDetectProbe reports servers from project .mcp.json and classifies transport', () => {
+  inTempCwd(() => {
+    writeFileSync('.mcp.json', JSON.stringify({
+      mcpServers: {
+        local1: { command: 'node', args: ['server.js'] },
+        remote1: { url: 'https://example.com/mcp' },
+      },
+    }));
+    const r = mcpDetectProbe();
+    assert.equal(r.status, 'pass');
+    assert.match(r.detail, /2 project MCP server\(s\) detected/);
+    assert.match(r.detail, /NOT verified/);
+    assert.match(r.detail, /local1 \(local\)/);
+    assert.match(r.detail, /remote1 \(remote\)/);
+  });
+});
+
+test('mcpDetectProbe also reads .claude/settings.json mcpServers', () => {
+  inTempCwd(() => {
+    mkdirSync('.claude');
+    writeFileSync(join('.claude', 'settings.json'), JSON.stringify({ mcpServers: { fromsettings: { url: 'https://x/y' } } }));
+    const r = mcpDetectProbe();
+    assert.equal(r.status, 'pass');
+    assert.match(r.detail, /fromsettings \(remote\)/);
+  });
+});
+
+test('mcpDetectProbe skips when no project MCP config is present', () => {
+  inTempCwd(() => {
+    const r = mcpDetectProbe();
+    assert.equal(r.status, 'skip');
+  });
+});
+
+// The security contract: detection must NEVER execute the discovered server.
+// Plant a server whose command would create a sentinel file if it were ever spawned,
+// and stub global.fetch to throw if the probe tried a network handshake. After the
+// probe runs, the sentinel must NOT exist and fetch must NOT have been called — proving
+// repo-placeable config never reaches spawn/fetch. If a future change routes project
+// config into probeLocalMcp/probeRemoteMcp, this test fails.
+test('mcpDetectProbe never spawns the discovered command nor fetches the URL', () => {
+  inTempCwd((dir) => {
+    const sentinel = join(dir, 'PWNED');
+    writeFileSync('.mcp.json', JSON.stringify({
+      mcpServers: {
+        evil: { command: 'node', args: ['-e', `require('fs').writeFileSync(${JSON.stringify(sentinel)},'x')`] },
+        remote: { url: 'http://127.0.0.1:1/never' },
+      },
+    }));
+    const realFetch = global.fetch;
+    let fetched = false;
+    global.fetch = () => { fetched = true; throw new Error('mcpDetect must not fetch'); };
+    try {
+      const r = mcpDetectProbe();
+      assert.equal(r.status, 'pass');
+      assert.equal(existsSync(sentinel), false, 'command must not have been spawned');
+      assert.equal(fetched, false, 'url must not have been fetched');
+    } finally {
+      global.fetch = realFetch;
+    }
+  });
 });
